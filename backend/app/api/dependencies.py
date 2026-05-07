@@ -22,7 +22,7 @@ async def get_current_user(authorization: str = Header(None)) -> UUID:
     user_id: str = payload.get("sub")
     if user_id is None:
         raise InvalidToken("Could not validate credentials")
-
+    
     try:
         return UUID(user_id)
     except ValueError:

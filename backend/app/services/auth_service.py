@@ -11,7 +11,7 @@ def register_user(db: Session, username: str, email: str, password: str) -> User
     user_exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
     if user_exists:
         raise UserAlreadyExists("Username or email already registered")
-
+    
     hashed_password = hash_password(password)
     user = User(username=username, email=email, password_hash=hashed_password)
     db.add(user)
@@ -59,7 +59,10 @@ def refresh_access_token(db: Session, refresh_token: str) -> dict:
     if not db_token:
         raise InvalidToken("Refresh token not found")
 
-    if db_token.expires_at < datetime.now(timezone.utc):
+    expires_at = db_token.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
         db.delete(db_token)
         db.commit()
         raise TokenExpired("Refresh token expired")
@@ -75,4 +78,5 @@ def refresh_access_token(db: Session, refresh_token: str) -> dict:
 def logout_user(db: Session, user_id: UUID) -> bool:
     db.query(RefreshToken).filter(RefreshToken.user_id == user_id).delete()
     db.commit()
+    print(f"User {user_id} logged out, all refresh tokens invalidated")
     return True
