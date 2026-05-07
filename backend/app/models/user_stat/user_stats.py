@@ -1,0 +1,15 @@
+from sqlalchemy import Column, Integer, Float, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from uuid import uuid4
+from app.db.base_class import BaseModel
+
+class UserStats(BaseModel):
+    __tablename__ = "user_stats"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    total_games = Column(Integer, default=0)
+    total_score = Column(Integer, default=0)
+    avg_score = Column(Float, default=0.0)
+
+    user = relationship("User", back_populates="user_stats")

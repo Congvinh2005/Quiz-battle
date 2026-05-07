@@ -1,0 +1,20 @@
+name: quizbattle-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - fastapi[all]
+      - uvicorn
+      - sqlalchemy>=2.0
+      - alembic
+      - psycopg2-binary  # Để kết nối PostgreSQL
+      - redis
+      - python-jose[cryptography] # Cho JWT Authentication
+      - passlib[bcrypt] # Cho password hashing
+      - python-multipart
+      - loguru # Cho logging chuyên nghiệp
+      - pytest
+      - httpx # Cho unit test
