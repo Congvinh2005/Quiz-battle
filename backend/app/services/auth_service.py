@@ -20,7 +20,8 @@ def register_user(db: Session, username: str, email: str, password: str) -> User
     return user
 
 def authenticate_user(db: Session, username: str, password: str) -> User:
-    user = db.query(User).filter(User.username == username).first()
+    login_id = username.strip()
+    user = db.query(User).filter((User.username == login_id) | (User.email == login_id)).first()
     if not user or not verify_password(password, user.password_hash):
         raise InvalidCredentials("Invalid username or password")
     return user
