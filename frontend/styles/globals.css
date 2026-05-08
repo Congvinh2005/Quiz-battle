@@ -6,6 +6,7 @@
 @import "./create-room.css";
 @import "./lobby.css";
 @import "./gameplay.css";
+@import "./result.css";
 
 @tailwind base;
 @tailwind components;
