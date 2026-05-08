@@ -3,6 +3,7 @@
 @import "./register.css";
 @import "./dashboard.css";
 @import "./editor.css";
+@import "./create-room.css";
 
 @tailwind base;
 @tailwind components;
