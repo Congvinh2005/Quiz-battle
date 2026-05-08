@@ -3,10 +3,10 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://postgres:your_secure_password_here@localhost:5432/quiz_battle"
+    DATABASE_URL: str = "postgresql://postgres:7906@localhost:5432/quiz"
     POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "your_secure_password_here"
-    POSTGRES_DB: str = "quiz_battle"
+    POSTGRES_PASSWORD: str = "7906"
+    POSTGRES_DB: str = "quiz"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
