@@ -4,6 +4,8 @@
 @import "./dashboard.css";
 @import "./editor.css";
 @import "./create-room.css";
+@import "./lobby.css";
+@import "./gameplay.css";
 
 @tailwind base;
 @tailwind components;
