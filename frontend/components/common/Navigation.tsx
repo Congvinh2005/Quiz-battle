@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Navigation() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -15,59 +15,48 @@ export default function Navigation() {
     router.push("/");
   };
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  const isAuthPage = pathname === "/" || pathname === "/register";
+
+  const navItems = [
+    { href: "/dashboard", label: "🏠 Dashboard", active: pathname === "/dashboard" },
+    { href: "/editor", label: "✏️ Tạo Quiz", active: pathname === "/editor" },
+    { href: "/create-room", label: "🎮 Tạo phòng", active: pathname === "/create-room" },
+    { href: "/room/demo", label: "👥 Lobby", active: pathname.startsWith("/room/") },
+    { href: "/game/demo", label: "⚡ Gameplay", active: pathname.startsWith("/game/") },
+    { href: "/results/demo", label: "🏆 Kết quả", active: pathname.startsWith("/results/") },
+  ];
 
   return (
-    <nav className="sticky top-0 z-100 bg-dark-bg border-b border-border">
-      <div className="flex items-center justify-between px-5 py-3">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <h1 className="font-syne font-extrabold text-lg text-brand-primary-light">
-            Quiz<span className="text-brand-accent">Battle</span>
-          </h1>
-        </div>
+    <nav className="app-nav">
+      <Link href="/dashboard" className="nav-logo">
+        Quiz<span>Battle</span>
+      </Link>
 
-        {/* Tabs */}
-        <div className="flex gap-1">
-          <Link href="/dashboard">
+      {!isAuthPage && (
+        <div className="nav-tabs">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <button className={`nav-tab${item.active ? " active" : ""}`}>{item.label}</button>
+            </Link>
+          ))}
+          {isAuthenticated && (
             <button
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all border ${
-                activeTab === "dashboard"
-                  ? "bg-dark-surface2 text-text-main border-border-light"
-                  : "bg-transparent text-text-muted border-transparent hover:text-text-main"
-              }`}
-              onClick={() => setActiveTab("dashboard")}
+              className="nav-tab"
+              style={{ color: "var(--accent)", marginLeft: "auto" }}
+              onClick={handleLogout}
             >
-              Dashboard
+              🚪 Đăng xuất
             </button>
-          </Link>
-          <Link href="/create-room">
-            <button
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all border ${
-                activeTab === "create"
-                  ? "bg-dark-surface2 text-text-main border-border-light"
-                  : "bg-transparent text-text-muted border-transparent hover:text-text-main"
-              }`}
-              onClick={() => setActiveTab("create")}
-            >
-              Create Room
-            </button>
-          </Link>
+          )}
+          {!isAuthenticated && (
+            <Link href="/">
+              <button className="nav-tab" style={{ color: "var(--accent)", marginLeft: "auto" }}>
+                🚪 Đăng xuất
+              </button>
+            </Link>
+          )}
         </div>
-
-        {/* User Menu */}
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-text-muted">{user?.username}</span>
-          <button
-            onClick={handleLogout}
-            className="px-3 py-1.5 text-xs font-medium text-text-main border border-border-light rounded-lg hover:bg-dark-surface2 transition-all"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
+      )}
     </nav>
   );
 }

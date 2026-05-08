@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuizBattle – Lobby</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/game.css">
+  <style>
+    .app-nav { display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100; }
+    .nav-logo { font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--primary-light); }
+    .nav-logo span { color:var(--accent); }
+    .nav-tabs { display:flex;gap:4px; }
+    .nav-tab { padding:6px 14px;border-radius:var(--pill);font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .2s; }
+    .nav-tab.active { background:var(--surface2);color:var(--text);border:1px solid var(--border2); }
+    .nav-tab:hover:not(.active) { color:var(--text); }
+  </style>
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="lobby-wrap">
+  <div class="lobby-header">
+    <div>
+      <h1 class="page-title">👥 Sảnh chờ</h1>
+      <p style="color:var(--muted);font-size:14px">Chờ mọi người vào đủ rồi bắt đầu!</p>
+    </div>
+    <div class="lobby-code-block">
+      <div class="lobby-code-label">Mã phòng</div>
+      <div class="lobby-code">GX7R2K</div>
+    </div>
+  </div>
+
+  <div class="lobby-grid">
+    <!-- Players list -->
+    <div class="players-area">
+      <div class="players-area-header">
+        <span class="players-count">Người chơi <span>(7/30)</span></span>
+        <span class="waiting-text"><span class="waiting-dot"></span> Đang chờ...</span>
+      </div>
+      <div class="players-grid">
+        <div class="player-chip host"><div class="player-av" style="background:linear-gradient(135deg,var(--gold),#D97706)">MK</div><div class="player-name">Minh Khoa</div><div class="player-badge">👑 Host</div></div>
+        <div class="player-chip"><div class="player-av" style="background:linear-gradient(135deg,var(--primary),var(--primary-light))">LA</div><div class="player-name">Lan Anh</div></div>
+        <div class="player-chip"><div class="player-av" style="background:linear-gradient(135deg,var(--accent),#0891B2)">TH</div><div class="player-name">Tuấn Hùng</div></div>
+        <div class="player-chip"><div class="player-av" style="background:linear-gradient(135deg,var(--green),#059669)">NQ</div><div class="player-name">Nam Quân</div></div>
+        <div class="player-chip"><div class="player-av" style="background:linear-gradient(135deg,#EC4899,#BE185D)">HV</div><div class="player-name">Hồng Vân</div></div>
+        <div class="player-chip"><div class="player-av" style="background:linear-gradient(135deg,#F59E0B,#D97706)">BK</div><div class="player-name">Bảo Khang</div></div>
+        <div class="player-chip"><div class="player-av" style="background:linear-gradient(135deg,#6366F1,#4F46E5)">TL</div><div class="player-name">Thùy Linh</div></div>
+        <div class="player-chip empty"><div class="player-av" style="background:var(--border2)">?</div><div class="player-name" style="color:var(--muted)">Chờ join...</div></div>
+        <div class="player-chip empty"><div class="player-av" style="background:var(--border2)">?</div><div class="player-name" style="color:var(--muted)">Chờ join...</div></div>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="lobby-right">
+      <div class="quiz-preview-card">
+        <div class="qp-icon">🌍</div>
+        <div class="qp-title">Địa Lý Thế Giới</div>
+        <div class="qp-meta">
+          <span>📝 10 câu hỏi</span>
+          <span>⏱ 30 giây / câu</span>
+          <span>⭐ Độ khó: Trung bình</span>
+          <span>🔀 Câu hỏi bị shuffle</span>
+        </div>
+      </div>
+      <div class="chat-card">
+        <div class="chat-title">💬 Chat phòng <span class="chat-live">LIVE</span></div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg"><span class="chat-msg-name">Lan Anh: </span>Sẵn sàng! 🎮</div>
+          <div class="chat-msg"><span class="chat-msg-name">Tuấn Hùng: </span>Hy vọng câu về địa lý 😅</div>
+          <div class="chat-msg"><span class="chat-msg-name">Nam Quân: </span>Ai biết thủ đô Nhật không? 😂</div>
+          <div class="chat-msg"><span class="chat-msg-name">Hồng Vân: </span>Tokyo duhh 🤣</div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Nhắn gì đó...">
+          <button class="chat-send" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+      <button class="btn-start" onclick="navigateTo('game')">🚀 Bắt đầu game! (7 người)</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/shared.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => renderNav('lobby'));
+
+  function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msgs  = document.getElementById('chatMessages');
+    if (!input.value.trim()) return;
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = `<span class="chat-msg-name">Bạn: </span>${input.value}`;
+    msgs.appendChild(msg);
+    msgs.scrollTop = msgs.scrollHeight;
+    input.value = '';
+  }
+  document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+</script>
+</body>
+</html>

@@ -6,21 +6,58 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function RegisterScreen() {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [strengthText, setStrengthText] = useState("");
+  const [strengthColor, setStrengthColor] = useState("var(--border2)");
+  const [strengthWidth, setStrengthWidth] = useState("0%");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { register } = useAuth();
+
+  const evaluatePassword = (value: string) => {
+    let score = 0;
+    if (value.length >= 8) score++;
+    if (/[A-Z]/.test(value)) score++;
+    if (/[0-9]/.test(value)) score++;
+    if (/[^A-Za-z0-9]/.test(value)) score++;
+
+    const pct = `${(score / 4) * 100}%`;
+    setStrengthWidth(pct);
+
+    if (score === 0) {
+      setStrengthText("");
+      setStrengthColor("var(--border2)");
+      return;
+    }
+
+    if (score === 1) {
+      setStrengthText("Yếu");
+      setStrengthColor("var(--red)");
+      return;
+    }
+
+    if (score <= 3) {
+      setStrengthText("Trung bình");
+      setStrengthColor("var(--gold)");
+      return;
+    }
+
+    setStrengthText("Mạnh");
+    setStrengthColor("var(--green)");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError("Mật khẩu xác nhận không khớp");
       return;
     }
 
@@ -30,90 +67,105 @@ export default function RegisterScreen() {
       await register(username, email, password);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed");
+      setError(err.response?.data?.message || "Đăng ký thất bại");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-53px)] flex items-center justify-center relative overflow-hidden px-5 py-10">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-brand-primary/10 via-transparent to-brand-accent/10" />
-
-      {/* Card */}
-      <div className="relative z-10 bg-dark-surface border border-border-light rounded-3xl p-12 w-full max-w-screen-sm shadow-2xl">
-        <div className="text-center mb-9">
-          <h1 className="font-syne text-3xl font-extrabold mb-2">Create Account</h1>
-          <p className="text-text-muted text-sm">Join Quiz Battle and start competing</p>
+    <div className="register-wrap">
+      <div className="register-bg" />
+      <div className="register-card">
+        <div className="step-dots">
+          <div className="step-dot active" />
+          <div className="step-dot" />
+          <div className="step-dot" />
         </div>
 
-        {error && <div className="mb-4 p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded-lg text-red-400 text-sm">{error}</div>}
+        <div className="register-header">
+          <h2 className="register-title">Tạo tài khoản</h2>
+          <p className="register-sub">Tham gia hàng nghìn người chơi đang đấu quiz mỗi ngày</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-text-muted uppercase tracking-widest block mb-2">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Choose a username"
-              className="w-full px-4 py-3 rounded-xl bg-dark-surface2 border border-border-light text-text-main text-sm focus:border-brand-primary focus:outline-none focus:shadow-glow transition-all"
-              required
-            />
+        {error && (
+          <div style={{
+            marginBottom: "16px",
+            padding: "10px 12px",
+            background: "rgba(239,68,68,.15)",
+            border: "1px solid rgba(239,68,68,.4)",
+            borderRadius: "10px",
+            color: "#EF4444",
+            fontSize: "13px",
+          }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Họ</label>
+              <input className="form-input" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Nguyễn" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tên</label>
+              <input className="form-input" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Minh Khoa" />
+            </div>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-text-muted uppercase tracking-widest block mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full px-4 py-3 rounded-xl bg-dark-surface2 border border-border-light text-text-main text-sm focus:border-brand-primary focus:outline-none focus:shadow-glow transition-all"
-              required
-            />
+          <div className="form-group">
+            <label className="form-label">Tên đăng nhập (username)</label>
+            <input className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="minhkhoa_99" required />
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-text-muted uppercase tracking-widest block mb-2">Password</label>
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input className="form-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Mật khẩu</label>
             <input
+              className="form-input"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password"
-              className="w-full px-4 py-3 rounded-xl bg-dark-surface2 border border-border-light text-text-main text-sm focus:border-brand-primary focus:outline-none focus:shadow-glow transition-all"
+              onChange={(e) => {
+                const value = e.target.value;
+                setPassword(value);
+                evaluatePassword(value);
+              }}
+              placeholder="Tối thiểu 8 ký tự, có chữ hoa và số"
               required
             />
+            <div className="strength-bar">
+              <div className="strength-fill" style={{ width: strengthWidth, background: strengthColor }} />
+            </div>
+            <div style={{ fontSize: "11px", color: strengthColor, marginTop: "4px" }}>
+              {strengthText ? `Độ mạnh: ${strengthText}` : ""}
+            </div>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-text-muted uppercase tracking-widest block mb-2">Confirm Password</label>
+          <div className="form-group">
+            <label className="form-label">Xác nhận mật khẩu</label>
             <input
+              className="form-input"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your password"
-              className="w-full px-4 py-3 rounded-xl bg-dark-surface2 border border-border-light text-text-main text-sm focus:border-brand-primary focus:outline-none focus:shadow-glow transition-all"
+              placeholder="Nhập lại mật khẩu"
               required
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-primary to-brand-primary-light text-white font-semibold text-sm cursor-pointer transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Creating Account..." : "Create Account"}
+          <button className="btn-primary" type="submit" disabled={isLoading}>
+            {isLoading ? "Đang tạo tài khoản..." : "Tạo tài khoản →"}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-text-muted">
-          Already have an account?{" "}
-          <Link href="/" className="text-brand-primary-light cursor-pointer hover:underline">
-            Log in
-          </Link>
-        </div>
+        <p className="register-footer">
+          Đã có tài khoản? <Link href="/" className="link">Đăng nhập</Link>
+        </p>
       </div>
     </div>
   );

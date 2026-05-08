@@ -22,102 +22,104 @@ export default function LoginScreen() {
       await login(username, password);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Đăng nhập thất bại");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-53px)] grid grid-cols-2 relative overflow-hidden">
-      {/* Left side */}
-      <div className="px-12 py-16 flex flex-col justify-center relative z-10">
-        <div className="inline-flex items-center gap-2 bg-brand-primary px-3.5 py-1.5 rounded-full mb-7 w-fit border border-brand-primary">
-          <div className="w-1.5 h-1.5 rounded-full bg-brand-primary-light animate-pulse" />
-          <span className="text-xs font-medium text-brand-primary-light">Live Quiz Platform</span>
-        </div>
+    <div className="login-wrap">
+      <div className="login-left">
+        <div className="brand-badge"><span className="dot" /> Quiz đấu thời gian thực</div>
+        <h1 className="login-title">Chào mừng<br />trở lại <span>QuizBattle</span></h1>
+        <p className="login-sub">Nền tảng đấu quiz thời gian thực. Tạo phòng, mời bạn bè và thi đấu ngay!</p>
 
-        <h1 className="font-syne text-5xl font-extrabold leading-tight mb-2.5">
-          Welcome to <span className="text-brand-primary-light">Quiz</span>
-          <span className="text-brand-accent">Battle</span>
-        </h1>
-        <p className="text-text-muted text-sm leading-relaxed mb-9">
-          Join real-time quiz battles with friends. Compete, learn, and climb the leaderboard.
-        </p>
+        {error && (
+          <div style={{
+            marginBottom: "16px",
+            padding: "10px 12px",
+            background: "rgba(239,68,68,.15)",
+            border: "1px solid rgba(239,68,68,.4)",
+            borderRadius: "10px",
+            color: "#EF4444",
+            fontSize: "13px",
+          }}>
+            {error}
+          </div>
+        )}
 
-        {error && <div className="mb-4 p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded-lg text-red-400 text-sm">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-text-muted uppercase tracking-widest block mb-2">Username</label>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Tên đăng nhập</label>
             <input
+              className="form-input"
               type="text"
+              placeholder="minhkhoa_99"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              className="w-full px-4 py-3 rounded-xl bg-dark-surface2 border border-border-light text-text-main text-sm focus:border-brand-primary focus:outline-none focus:shadow-glow transition-all"
               required
             />
           </div>
-
-          <div>
-            <label className="text-xs font-bold text-text-muted uppercase tracking-widest block mb-2">Password</label>
+          <div className="form-group">
+            <label className="form-label">Mật khẩu</label>
             <input
+              className="form-input"
               type="password"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full px-4 py-3 rounded-xl bg-dark-surface2 border border-border-light text-text-main text-sm focus:border-brand-primary focus:outline-none focus:shadow-glow transition-all"
               required
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-primary to-brand-primary-light text-white font-semibold text-sm cursor-pointer transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Logging in..." : "Log In"}
+          <button className="btn-primary" type="submit" disabled={isLoading}>
+            {isLoading ? "Đang đăng nhập..." : "Đăng nhập →"}
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-5 text-text-muted">
-          <div className="flex-1 h-px bg-border-light" />
-          <span className="text-xs">Or continue with</span>
-          <div className="flex-1 h-px bg-border-light" />
-        </div>
-
-        <button className="w-full py-3 rounded-xl bg-transparent border border-border-light text-text-main font-medium text-sm cursor-pointer transition-all hover:bg-dark-surface2">
-          Sign up with Email
+        <div className="login-divider">hoặc</div>
+        <button className="btn-outline" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Tiếp tục với Google
         </button>
-
-        <div className="mt-6 text-center text-xs text-text-muted">
-          Don't have an account?{" "}
-          <Link href="/register" className="text-brand-primary-light cursor-pointer hover:underline">
-            Create one
-          </Link>
-        </div>
+        <p className="login-footer">Chưa có tài khoản? <Link className="link" href="/register">Đăng ký miễn phí</Link></p>
       </div>
 
-      {/* Right side - Orbs */}
-      <div className="relative overflow-hidden flex items-center justify-center">
-        <div className="absolute w-96 h-96 bg-brand-primary rounded-full blur-3xl opacity-50 -top-16 -right-16" />
-        <div className="absolute w-72 h-72 bg-brand-accent rounded-full blur-3xl opacity-50 -bottom-8 right-16" />
-
-        {/* Demo Cards */}
-        <div className="relative z-10 flex flex-col gap-3 p-5">
-          <div className="bg-dark-surface2 bg-opacity-85 backdrop-blur-xl border border-border-light rounded-2xl p-5 w-64">
-            <h3 className="font-syne text-xs font-bold text-text-muted uppercase tracking-widest mb-2.5">Live Players</h3>
-            <div className="flex gap-4">
-              <div className="text-center">
-                <div className="font-syne text-3xl font-extrabold text-brand-primary-light">1.2K</div>
-                <div className="text-xs text-text-muted">Online</div>
+      <div className="login-right">
+        <div className="orb orb-1" />
+        <div className="orb orb-2" />
+        <div className="floating-demo">
+          <div className="demo-card">
+            <div className="demo-card-title">Thống kê hôm nay</div>
+            <div className="demo-stat-row">
+              <div className="demo-stat">
+                <div className="demo-stat-val">1,247</div>
+                <div className="demo-stat-lbl">Phòng đang chơi</div>
               </div>
-              <div className="text-center">
-                <div className="font-syne text-3xl font-extrabold text-brand-accent">4.5K</div>
-                <div className="text-xs text-text-muted">Today</div>
+              <div className="demo-stat">
+                <div className="demo-stat-val" style={{ color: "var(--accent)" }}>8,931</div>
+                <div className="demo-stat-lbl">Người online</div>
               </div>
             </div>
+          </div>
+          <div className="demo-card">
+            <div className="demo-card-title">Leaderboard</div>
+            <div className="demo-players">
+              <div className="demo-player"><div className="demo-avatar" style={{ background: "rgba(245,158,11,.2)", color: "var(--gold)" }}>🥇</div><span className="demo-player-name">Minh Khoa</span><span className="demo-player-score">9,850</span></div>
+              <div className="demo-player"><div className="demo-avatar" style={{ background: "rgba(148,163,184,.15)", color: "#94A3B8" }}>🥈</div><span className="demo-player-name">Lan Anh</span><span className="demo-player-score">8,600</span></div>
+              <div className="demo-player"><div className="demo-avatar" style={{ background: "rgba(205,127,50,.15)", color: "#CD7F32" }}>🥉</div><span className="demo-player-name">Tuấn Hùng</span><span className="demo-player-score">7,200</span></div>
+            </div>
+          </div>
+          <div className="demo-card">
+            <div className="demo-card-title">Quiz đang hot</div>
+            <div style={{ fontSize: "13px", marginBottom: "6px", fontWeight: 600 }}>Địa Lý Thế Giới</div>
+            <div style={{ fontSize: "11px", color: "var(--muted)" }}>234 người đã chơi hôm nay • 10 câu hỏi</div>
           </div>
         </div>
       </div>

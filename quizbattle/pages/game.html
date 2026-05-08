@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuizBattle – Gameplay</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/game.css">
+  <style>
+    .app-nav { display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100; }
+    .nav-logo { font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--primary-light); }
+    .nav-logo span { color:var(--accent); }
+    .nav-tabs { display:flex;gap:4px; }
+    .nav-tab { padding:6px 14px;border-radius:var(--pill);font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .2s; }
+    .nav-tab.active { background:var(--surface2);color:var(--text);border:1px solid var(--border2); }
+    .nav-tab:hover:not(.active) { color:var(--text); }
+  </style>
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="game-wrap">
+  <!-- Top bar -->
+  <div class="game-topbar">
+    <div class="game-question-counter">Câu <strong>1</strong> / 10</div>
+    <div class="timer-block">
+      <div class="timer-circle">
+        <svg class="timer-svg" width="52" height="52" viewBox="0 0 52 52">
+          <circle class="timer-track" cx="26" cy="26" r="20"/>
+          <circle class="timer-fill" id="timerCircle" cx="26" cy="26" r="20"/>
+        </svg>
+        <div class="timer-num" id="timerNum">30</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--gold)">🏆 Hạng 2</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--primary-light)">6,400 pts</div>
+      <div class="game-players-mini">
+        <div class="mini-av" style="background:linear-gradient(135deg,var(--gold),#D97706)">MK</div>
+        <div class="mini-av" style="background:linear-gradient(135deg,var(--primary),var(--primary-light))">LA</div>
+        <div class="mini-av" style="background:linear-gradient(135deg,var(--accent),#0891B2)">TH</div>
+        <div style="width:28px;height:28px;border-radius:50%;border:2px solid var(--bg);margin-left:-6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">+4</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Question + answers -->
+  <div class="game-body">
+    <!-- Left: Chat -->
+    <div class="chat-card">
+      <div class="chat-title">💬 Chat phòng <span class="chat-live">LIVE</span></div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg"><span class="chat-msg-name">Lan Anh: </span>Sẵn sàng! 🎮</div>
+        <div class="chat-msg"><span class="chat-msg-name">Tuấn Hùng: </span>Hy vọng câu về địa lý 😅</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" placeholder="Nhắn gì đó...">
+        <button class="chat-send" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+
+    <!-- Middle: Question -->
+    <div class="game-content">
+      <div class="question-card">
+        <div class="question-num">Câu hỏi 1 trong 10</div>
+        <div class="question-text">Thủ đô của Nhật Bản là gì?</div>
+      </div>
+      <div class="answers-grid">
+        <div class="answer-btn" onclick="selectAnswer(this,'A')"><div class="answer-letter">A</div>Osaka</div>
+        <div class="answer-btn correct" onclick="selectAnswer(this,'B')"><div class="answer-letter">B</div>Tokyo ✓</div>
+        <div class="answer-btn" onclick="selectAnswer(this,'C')"><div class="answer-letter">C</div>Kyoto</div>
+        <div class="answer-btn" onclick="selectAnswer(this,'D')"><div class="answer-letter">D</div>Nagoya</div>
+      </div>
+    </div>
+
+    <!-- Right: Mini Board -->
+    <div class="mini-board vertical">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:10px;padding:0 4px">Leaderboard</div>
+      <div class="mini-board-item"><span class="mini-rank gold">🥇</span><div class="mini-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--gold),#D97706);font-size:10px">LA</div><span class="mini-name">Lan Anh</span><span class="mini-score">7,200</span></div>
+      <div class="mini-board-item" style="border-color:var(--primary);background:rgba(124,58,237,.08)"><span class="mini-rank silver">🥈</span><div class="mini-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--primary),var(--primary-light));font-size:10px">MK</div><span class="mini-name">Bạn</span><span class="mini-score">6,400</span></div>
+      <div class="mini-board-item"><span class="mini-rank bronze">🥉</span><div class="mini-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--accent),#0891B2);font-size:10px">TH</div><span class="mini-name">Tuấn Hùng</span><span class="mini-score">5,900</span></div>
+      <div class="mini-board-item"><span class="mini-rank" style="color:var(--muted)">4</span><div class="mini-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--green),#059669);font-size:10px">NQ</div><span class="mini-name">Nam Quân</span><span class="mini-score">4,850</span></div>
+      <div class="mini-board-item"><span class="mini-rank" style="color:var(--muted)">5</span><div class="mini-av" style="width:24px;height:24px;background:linear-gradient(135deg,#EC4899,#BE185D);font-size:10px">HV</div><span class="mini-name">Hồng Vân</span><span class="mini-score">3,200</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/shared.js"></script>
+<script src="../js/game.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => renderNav('game'));
+
+  function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msgs  = document.getElementById('chatMessages');
+    if (!input.value.trim()) return;
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = `<span class="chat-msg-name">Bạn: </span>${input.value}`;
+    msgs.appendChild(msg);
+    msgs.scrollTop = msgs.scrollHeight;
+    input.value = '';
+  }
+  document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+</script>
+</body>
+</html>
