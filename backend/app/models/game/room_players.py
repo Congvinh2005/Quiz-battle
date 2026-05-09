@@ -4,7 +4,13 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class RoomPlayer(BaseModel):
+    """
+    Player participation in room - domain: GAME PLAY MANAGEMENT
+    Links user to room with display name and accumulated score
+    Composite key prevents duplicate joins
+    """
     __tablename__ = "room_players"
     __table_args__ = (UniqueConstraint('room_id', 'user_id', name='uq_room_user'),)
 

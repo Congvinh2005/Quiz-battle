@@ -4,7 +4,13 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class PlayerAnswer(BaseModel):
+    """
+    Player answer submission - domain: GAME PLAY MANAGEMENT
+    Records individual question responses with correctness and response time
+    Composite key ensures one answer per player per question per room
+    """
     __tablename__ = "player_answers"
     __table_args__ = (UniqueConstraint('room_id', 'user_id', 'question_id', name='uq_room_user_question'),)
 

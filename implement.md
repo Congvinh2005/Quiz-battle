@@ -57,7 +57,6 @@ API hiện có nhưng còn thiếu:
 ```sql
 ALTER TABLE game_rooms
 ADD COLUMN max_players INT NOT NULL DEFAULT 30,
-ADD COLUMN allow_late_join BOOLEAN NOT NULL DEFAULT TRUE,
 ADD COLUMN shuffle_questions BOOLEAN NOT NULL DEFAULT TRUE,
 ADD COLUMN chat_enabled BOOLEAN NOT NULL DEFAULT TRUE,
 ADD COLUMN current_question_order INT DEFAULT 1;
