@@ -1,34 +1,372 @@
 "use client";
 
-import React from "react";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { quizService, QuizSavePayload } from "@/services/quizService";
+import { Quiz } from "@/types";
 
 interface QuizEditorScreenProps {
   quizId?: string;
 }
 
+type QuestionType = "MCQ" | "TRUE_FALSE";
+
+interface EditorQuestion {
+  id: string;
+  text: string;
+  type: QuestionType;
+  timeLimit: number;
+  points: number;
+  options: string[];
+  correctIndex: number;
+}
+
+const letters = ["A", "B", "C", "D"];
+const timeOptions = [10, 20, 30, 60];
+
+const initialQuestions: EditorQuestion[] = [
+  {
+    id: "q1",
+    text: "Thủ đô của Nhật Bản là gì?",
+    type: "MCQ",
+    timeLimit: 30,
+    points: 100,
+    options: ["Osaka", "Tokyo", "Kyoto", "Nagoya"],
+    correctIndex: 1,
+  },
+  {
+    id: "q2",
+    text: "Úc là một lục địa?",
+    type: "TRUE_FALSE",
+    timeLimit: 20,
+    points: 100,
+    options: ["Đúng", "Sai", "", ""],
+    correctIndex: 0,
+  },
+  {
+    id: "q3",
+    text: "Sông dài nhất thế giới?",
+    type: "MCQ",
+    timeLimit: 30,
+    points: 100,
+    options: ["Amazon", "Nile", "Mekong", "Yangtze"],
+    correctIndex: 1,
+  },
+];
+
+function normalizeOptions(type: QuestionType, options?: string[]) {
+  if (type === "TRUE_FALSE") return ["Đúng", "Sai", "", ""];
+  return options?.length === 4 ? options : ["", "", "", ""];
+}
+
 export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
-  return (
-    <div className="grid grid-cols-[260px_1fr] min-h-[calc(100vh-53px)]">
-      {/* Sidebar */}
-      <div className="bg-dark-surface border-r border-border p-5 flex flex-col gap-1">
-        <h3 className="font-syne text-xs font-bold text-text-muted uppercase tracking-widest mb-2.5 px-2">Questions</h3>
-        <button className="px-2.5 py-2.5 rounded-2xl border border-dashed border-border-light bg-transparent text-text-muted text-sm cursor-pointer hover:border-brand-primary hover:text-brand-primary-light transition-all">
-          + Add Question
-        </button>
-      </div>
+  const router = useRouter();
+  const [quizTitle, setQuizTitle] = useState("🌍 Địa Lý Thế Giới");
+  const [visibility, setVisibility] = useState("private");
+  const [questions, setQuestions] = useState<EditorQuestion[]>(initialQuestions);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(quizId ? true : false);
 
-      {/* Main */}
-      <div className="p-7 overflow-y-auto">
-        <div className="max-w-3xl">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="font-syne text-lg font-bold">{quizId ? "Edit Quiz" : "Create New Quiz"}</h1>
-          </div>
+  useEffect(() => {
+    if (!quizId) return;
 
-          <div className="bg-dark-surface2 border border-border-light rounded-3xl p-6">
-            <p className="text-text-muted">Editor form will appear here</p>
-          </div>
+    const loadQuiz = async () => {
+      try {
+        setIsLoading(true);
+        const quiz = await quizService.getQuizById(quizId);
+        setQuizTitle(quiz.title);
+        setVisibility(quiz.is_public ? "public" : "private");
+
+        if (quiz.questions && quiz.questions.length > 0) {
+          const convertedQuestions = quiz.questions.map((q) => {
+            const options = q.answer_options?.map((opt) => opt.content) || ["", "", "", ""];
+            const correctIndex = q.answer_options?.findIndex((opt) => opt.is_correct) ?? 0;
+            return {
+              id: q.id,
+              text: q.content,
+              type: q.question_type as QuestionType,
+              timeLimit: q.time_limit || 30,
+              points: q.points || 100,
+              options,
+              correctIndex: correctIndex >= 0 ? correctIndex : 0,
+            };
+          });
+          setQuestions(convertedQuestions);
+          setActiveIndex(0);
+        }
+      } catch (err) {
+        console.error("Failed to load quiz:", err);
+        alert("Không tải được quiz. Vui lòng thử lại.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadQuiz();
+  }, [quizId]);
+
+  const activeQuestion = questions[activeIndex] ?? questions[0];
+  const visibleOptions = useMemo(
+    () => activeQuestion.options.slice(0, activeQuestion.type === "TRUE_FALSE" ? 2 : 4),
+    [activeQuestion]
+  );
+
+  const updateActiveQuestion = (patch: Partial<EditorQuestion>) => {
+    setQuestions((current) =>
+      current.map((question, index) => (index === activeIndex ? { ...question, ...patch } : question))
+    );
+  };
+
+  const handleTypeChange = (type: QuestionType) => {
+    updateActiveQuestion({
+      type,
+      options: normalizeOptions(type, activeQuestion.options),
+      correctIndex: 0,
+    });
+  };
+
+  const handleOptionChange = (optionIndex: number, event: ChangeEvent<HTMLInputElement>) => {
+    const nextOptions = [...activeQuestion.options];
+    nextOptions[optionIndex] = event.target.value;
+    updateActiveQuestion({ options: nextOptions });
+  };
+
+  const handleAddQuestion = () => {
+    const newQuestion: EditorQuestion = {
+      id: `q${Date.now()}`,
+      text: "Câu hỏi mới...",
+      type: "MCQ",
+      timeLimit: 30,
+      points: 100,
+      options: ["", "", "", ""],
+      correctIndex: 0,
+    };
+
+    setQuestions((current) => [...current, newQuestion]);
+    setActiveIndex(questions.length);
+  };
+
+  const handleDeleteQuestion = () => {
+    if (questions.length === 1) {
+      updateActiveQuestion({
+        text: "",
+        type: "MCQ",
+        timeLimit: 30,
+        points: 100,
+        options: ["", "", "", ""],
+        correctIndex: 0,
+      });
+      return;
+    }
+
+    setQuestions((current) => current.filter((_, index) => index !== activeIndex));
+    setActiveIndex((current) => Math.max(0, current - 1));
+  };
+
+  const handleMoveUp = () => {
+    if (activeIndex === 0) return;
+
+    setQuestions((current) => {
+      const next = [...current];
+      const currentQuestion = next[activeIndex];
+      next[activeIndex] = next[activeIndex - 1];
+      next[activeIndex - 1] = currentQuestion;
+      return next;
+    });
+    setActiveIndex((current) => current - 1);
+  };
+
+  const previewQuestion = activeQuestion.text.trim() || "Nhập nội dung câu hỏi...";
+
+  const handleSaveQuiz = async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const payload: QuizSavePayload = {
+        title: quizTitle.trim(),
+        description: `Có ${questions.length} câu hỏi`,
+        is_public: visibility === "public",
+        questions: questions.map((q) => ({
+          content: q.text,
+          question_type: q.type,
+          time_limit: q.timeLimit,
+          points: q.points,
+          order_index: questions.indexOf(q),
+          answer_options: q.options.map((opt, idx) => ({
+            content: opt,
+            is_correct: idx === q.correctIndex,
+          })),
+        })),
+      };
+
+      const savedQuiz = quizId
+        ? await quizService.updateQuiz(quizId, payload)
+        : await quizService.createQuiz(payload);
+
+      router.push(`/editor/${savedQuiz.id}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="editor-wrap">
+        <div style={{ padding: "32px", textAlign: "center" }}>
+          <div style={{ fontSize: "18px", color: "var(--muted)" }}>Đang tải quiz...</div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="editor-wrap">
+      <aside className="editor-sidebar">
+        <div className="editor-quiz-box">
+          <input
+            className="form-input"
+            placeholder="Tên quiz..."
+            value={quizTitle}
+            onChange={(event) => setQuizTitle(event.target.value)}
+            style={{ fontFamily: "Syne, sans-serif", fontWeight: 700 }}
+          />
+          <div className="editor-quiz-meta">
+            <select className="editor-select" value={visibility} onChange={(event) => setVisibility(event.target.value)}>
+              <option value="private">🔒 Private</option>
+              <option value="public">🌍 Public</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="es-title">Câu hỏi ({questions.length})</div>
+        {questions.map((question, index) => (
+          <button
+            className={`es-q-item${index === activeIndex ? " active" : ""}`}
+            key={question.id}
+            onClick={() => setActiveIndex(index)}
+          >
+            <div className="es-q-num">{index + 1}</div>
+            <div className="es-q-text">{question.text || "Câu hỏi chưa có nội dung"}</div>
+          </button>
+        ))}
+        <button className="es-add" onClick={handleAddQuestion}>
+          + Thêm câu hỏi
+        </button>
+
+        <div className="editor-sidebar-actions">
+          <button className="btn-save" style={{ width: "100%" }} onClick={handleSaveQuiz} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "💾 Lưu"}
+          </button>
+          <button className="btn-publish" style={{ width: "100%" }} onClick={() => router.push("/create-room")}>
+            🚀 Lưu & Chơi
+          </button>
+        </div>
+      </aside>
+
+      <main className="editor-main">
+        <div className="editor-main-header">
+          <h1 className="em-title">
+            {quizId ? "Chỉnh sửa quiz" : "Câu hỏi"} {activeIndex + 1} / {questions.length}
+          </h1>
+          <div className="editor-header-actions">
+            <button className="editor-icon-btn" onClick={handleDeleteQuestion}>
+              🗑 Xóa
+            </button>
+            <button className="editor-icon-btn strong" onClick={handleMoveUp}>
+              ⬆ Di chuyển
+            </button>
+          </div>
+        </div>
+
+        <section className="question-editor">
+          <div className="qe-top">
+            <div className="qe-type-toggle">
+              <button
+                className={`qe-type-btn${activeQuestion.type === "MCQ" ? " active" : ""}`}
+                onClick={() => handleTypeChange("MCQ")}
+              >
+                Trắc nghiệm
+              </button>
+              <button
+                className={`qe-type-btn${activeQuestion.type === "TRUE_FALSE" ? " active" : ""}`}
+                onClick={() => handleTypeChange("TRUE_FALSE")}
+              >
+                Đúng / Sai
+              </button>
+            </div>
+            <div className="qe-time">⏱ Thời gian:</div>
+            <div className="time-select">
+              {timeOptions.map((time) => (
+                <button
+                  className={`time-chip${activeQuestion.timeLimit === time ? " active" : ""}`}
+                  key={time}
+                  onClick={() => updateActiveQuestion({ timeLimit: time })}
+                >
+                  {time}s
+                </button>
+              ))}
+            </div>
+            <div className="qe-score">
+              Điểm: <span>{activeQuestion.points}</span>
+            </div>
+          </div>
+
+          <textarea
+            className="qe-textarea"
+            rows={3}
+            value={activeQuestion.text}
+            onChange={(event) => updateActiveQuestion({ text: event.target.value })}
+          />
+
+          <div className="answers-label">Đáp án (chọn đáp án đúng ✓):</div>
+          <div className="options-editor">
+            {visibleOptions.map((option, index) => (
+              <div className={`option-editor${activeQuestion.correctIndex === index ? " correct" : ""}`} key={letters[index]}>
+                <div className="opt-letter">{letters[index]}</div>
+                <input
+                  className="opt-input"
+                  value={option}
+                  onChange={(event) => handleOptionChange(index, event)}
+                  readOnly={activeQuestion.type === "TRUE_FALSE"}
+                  placeholder={`Đáp án ${letters[index]}`}
+                />
+                <button
+                  className={`opt-correct-btn${activeQuestion.correctIndex === index ? " checked" : ""}`}
+                  onClick={() => updateActiveQuestion({ correctIndex: index })}
+                  aria-label={`Chọn đáp án ${letters[index]} là đúng`}
+                >
+                  {activeQuestion.correctIndex === index ? "✓" : ""}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="editor-preview">
+          <div className="editor-preview-title">Preview câu hỏi</div>
+          <div className="preview-question">{previewQuestion}</div>
+          <div className="preview-options">
+            {visibleOptions.map((option, index) => {
+              const isCorrect = activeQuestion.correctIndex === index;
+              const isFirstWrong = index === 0 && !isCorrect;
+
+              return (
+                <div
+                  className={`preview-option${isCorrect ? " correct" : ""}${isFirstWrong ? " wrong" : ""}`}
+                  key={letters[index]}
+                >
+                  <span className="preview-letter">{letters[index]}</span>
+                  <span className="preview-option-text">
+                    {option || `Đáp án ${letters[index]}`} {isCorrect ? "✓" : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

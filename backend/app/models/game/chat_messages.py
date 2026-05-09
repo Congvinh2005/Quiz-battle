@@ -4,7 +4,12 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class ChatMessage(BaseModel):
+    """
+    In-game chat message - domain: GAME PLAY MANAGEMENT
+    Real-time communication between players during game session
+    """
     __tablename__ = "chat_messages"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)

@@ -4,7 +4,13 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class GameResult(BaseModel):
+    """
+    Game completion result - domain: GAME PLAY MANAGEMENT
+    Final score and ranking snapshot after game finishes
+    One result per user per game room
+    """
     __tablename__ = "game_results"
     __table_args__ = (UniqueConstraint('room_id', 'user_id', name='uq_room_user_result'),)
 

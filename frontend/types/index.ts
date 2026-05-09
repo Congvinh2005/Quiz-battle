@@ -54,10 +54,29 @@ export interface Quiz {
   is_public: boolean;
   created_at: string;
   questions?: Question[];
+  question_count?: number;
+  total_duration_seconds?: number;
 }
 
 // Game Types
 export type GameStatus = "WAITING" | "PLAYING" | "FINISHED";
+
+export interface QuizPreview {
+  id: string;
+  title: string;
+  description?: string;
+  question_count: number;
+  total_duration_seconds: number;
+  total_duration_formatted: string;
+  created_by?: string;
+}
+
+export interface RoomSettings {
+  max_players: number;
+  shuffle_questions: boolean;
+  chat_enabled: boolean;
+  current_question_order: number;
+}
 
 export interface GameRoom {
   id: string;
@@ -68,6 +87,10 @@ export interface GameRoom {
   created_at: string;
   started_at?: string;
   ended_at?: string;
+  quiz?: QuizPreview;
+  settings?: RoomSettings;
+  players?: RoomPlayer[];
+  player_count?: number;
 }
 
 export interface RoomPlayer {

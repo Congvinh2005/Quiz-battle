@@ -4,7 +4,12 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class User(BaseModel):
+    """
+    User authentication & identity - domain: USERS & AUTH
+    Core identity and credentials for system authentication
+    """
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -12,12 +17,19 @@ class User(BaseModel):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(Text, nullable=False)
 
+    # Auth domain relationships
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+
+    # Quiz content relationships
     quizzes = relationship("Quiz", back_populates="creator", cascade="all, delete-orphan")
+
+    # Game play relationships
     game_rooms = relationship("GameRoom", back_populates="host", cascade="all, delete-orphan")
     room_players = relationship("RoomPlayer", back_populates="user", cascade="all, delete-orphan")
     player_answers = relationship("PlayerAnswer", back_populates="user", cascade="all, delete-orphan")
     game_results = relationship("GameResult", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
+
+    # User stats relationship
     user_stats = relationship("UserStats", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
