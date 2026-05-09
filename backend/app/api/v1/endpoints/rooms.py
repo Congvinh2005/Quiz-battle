@@ -49,15 +49,31 @@ def create_room(payload: dict, current_user: UUID = Depends(get_current_user), d
     if not quiz:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
 
+    if not quiz.is_public and quiz.created_by != current_user:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to use this quiz")
+
     room = GameRoom(
         room_code=_build_room_code(),
         host_id=current_user,
         quiz_id=quiz.id,
         status="WAITING",
+        max_players=payload.get("max_players", 30),
+        shuffle_questions=payload.get("shuffle_questions", True),
+        chat_enabled=payload.get("chat_enabled", True),
     )
     db.add(room)
     db.commit()
     db.refresh(room)
+
+    user = db.query(User).filter(User.id == current_user).first()
+    host_player = RoomPlayer(
+        room_id=room.id,
+        user_id=current_user,
+        display_name=user.username if user else "Host",
+        score=0,
+    )
+    db.add(host_player)
+    db.commit()
 
     return _serialize_room(room)
 

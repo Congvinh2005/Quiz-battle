@@ -242,22 +242,58 @@
   color: var(--muted);
 }
 
-.play-btn {
-  padding: 6px 14px;
+.quiz-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.play-btn,
+.edit-btn,
+.delete-btn {
+  padding: 6px 12px;
   border-radius: var(--pill);
   font-size: 12px;
   font-weight: 600;
-  background: var(--primary);
   border: none;
-  color: #fff;
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "DM Sans", sans-serif;
+}
+
+.play-btn {
+  background: var(--primary);
+  color: #fff;
+  flex: 1;
+  justify-content: center;
 }
 
 .play-btn:hover {
   background: var(--primary-light);
+}
+
+.edit-btn {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.edit-btn:hover {
+  background: rgba(6, 182, 212, 0.24);
+}
+
+.delete-btn {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border: 1px solid #fca5a5;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.24);
 }
 
 .quiz-create-card {

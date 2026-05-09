@@ -1,7 +1,9 @@
 "use client";
 
-import React, { ChangeEvent, useMemo, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { quizService, QuizSavePayload } from "@/services/quizService";
+import { Quiz } from "@/types";
 
 interface QuizEditorScreenProps {
   quizId?: string;
@@ -63,6 +65,46 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const [visibility, setVisibility] = useState("private");
   const [questions, setQuestions] = useState<EditorQuestion[]>(initialQuestions);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(quizId ? true : false);
+
+  useEffect(() => {
+    if (!quizId) return;
+
+    const loadQuiz = async () => {
+      try {
+        setIsLoading(true);
+        const quiz = await quizService.getQuizById(quizId);
+        setQuizTitle(quiz.title);
+        setVisibility(quiz.is_public ? "public" : "private");
+
+        if (quiz.questions && quiz.questions.length > 0) {
+          const convertedQuestions = quiz.questions.map((q) => {
+            const options = q.answer_options?.map((opt) => opt.content) || ["", "", "", ""];
+            const correctIndex = q.answer_options?.findIndex((opt) => opt.is_correct) ?? 0;
+            return {
+              id: q.id,
+              text: q.content,
+              type: q.question_type as QuestionType,
+              timeLimit: q.time_limit || 30,
+              points: q.points || 100,
+              options,
+              correctIndex: correctIndex >= 0 ? correctIndex : 0,
+            };
+          });
+          setQuestions(convertedQuestions);
+          setActiveIndex(0);
+        }
+      } catch (err) {
+        console.error("Failed to load quiz:", err);
+        alert("Không tải được quiz. Vui lòng thử lại.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadQuiz();
+  }, [quizId]);
 
   const activeQuestion = questions[activeIndex] ?? questions[0];
   const visibleOptions = useMemo(
@@ -137,6 +179,48 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
   const previewQuestion = activeQuestion.text.trim() || "Nhập nội dung câu hỏi...";
 
+  const handleSaveQuiz = async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const payload: QuizSavePayload = {
+        title: quizTitle.trim(),
+        description: `Có ${questions.length} câu hỏi`,
+        is_public: visibility === "public",
+        questions: questions.map((q) => ({
+          content: q.text,
+          question_type: q.type,
+          time_limit: q.timeLimit,
+          points: q.points,
+          order_index: questions.indexOf(q),
+          answer_options: q.options.map((opt, idx) => ({
+            content: opt,
+            is_correct: idx === q.correctIndex,
+          })),
+        })),
+      };
+
+      const savedQuiz = quizId
+        ? await quizService.updateQuiz(quizId, payload)
+        : await quizService.createQuiz(payload);
+
+      router.push(`/editor/${savedQuiz.id}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="editor-wrap">
+        <div style={{ padding: "32px", textAlign: "center" }}>
+          <div style={{ fontSize: "18px", color: "var(--muted)" }}>Đang tải quiz...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="editor-wrap">
       <aside className="editor-sidebar">
@@ -172,8 +256,8 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
         </button>
 
         <div className="editor-sidebar-actions">
-          <button className="btn-save" style={{ width: "100%" }}>
-            💾 Lưu
+          <button className="btn-save" style={{ width: "100%" }} onClick={handleSaveQuiz} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "💾 Lưu"}
           </button>
           <button className="btn-publish" style={{ width: "100%" }} onClick={() => router.push("/create-room")}>
             🚀 Lưu & Chơi

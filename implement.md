@@ -483,56 +483,58 @@ Cần đảm bảo:
 
 # PHẦN 14 - API SUMMARY
 
+🔒 = cần access token qua `Authorization: Bearer <access_token>`
+
 ## Auth
 
-* POST /auth/register
-* POST /auth/login
-* GET /auth/me
-* POST /auth/refresh
-* POST /auth/logout
+* POST /auth/register (Done)
+* POST /auth/login (Done)
+* GET /auth/me 🔒 (Done)
+* POST /auth/refresh (Done)
+* POST /auth/logout 🔒 (Done)
 
 ## Dashboard
 
-* GET /dashboard
+* GET /dashboard 🔒
 
 ## Quiz
 
-* GET /quizzes
-* GET /quizzes/{quiz_id}
-* POST /quizzes
-* PUT /quizzes/{quiz_id}
-* DELETE /quizzes/{quiz_id}
-* POST /quizzes/{quiz_id}/duplicate
+* GET /quizzes 🔒 (Done)
+* GET /quizzes/{quiz_id} 🔒 (Done)
+* POST /quizzes 🔒 (Done)
+* PUT /quizzes/{quiz_id} 🔒(Done)
+* DELETE /quizzes/{quiz_id} 🔒(Done)
+* POST /quizzes/{quiz_id}/duplicate 🔒(Stop)
 
 ## Room
 
-* POST /rooms
-* GET /rooms/{room_code}
-* POST /rooms/{room_code}/join
-* POST /rooms/{room_code}/leave
-* GET /rooms/{room_code}/players
-* POST /rooms/{room_code}/start
+* POST /rooms 🔒(Done)
+* GET /rooms/{room_code} 🔒
+* POST /rooms/{room_code}/join 🔒
+* POST /rooms/{room_code}/leave 🔒
+* GET /rooms/{room_code}/players 🔒
+* POST /rooms/{room_code}/start 🔒
 
 ## Gameplay
 
-* GET /rooms/{room_code}/state
-* POST /rooms/{room_code}/answers
-* GET /rooms/{room_code}/leaderboard
-* POST /rooms/{room_code}/next-question
-* POST /rooms/{room_code}/finish
+* GET /rooms/{room_code}/state 🔒
+* POST /rooms/{room_code}/answers 🔒
+* GET /rooms/{room_code}/leaderboard 🔒
+* POST /rooms/{room_code}/next-question 🔒
+* POST /rooms/{room_code}/finish 🔒
 
 ## Chat
 
-* GET /rooms/{room_code}/chat
-* POST /rooms/{room_code}/chat
+* GET /rooms/{room_code}/chat 🔒
+* POST /rooms/{room_code}/chat 🔒
 
 ## Result
 
-* GET /rooms/{room_code}/results
+* GET /rooms/{room_code}/results 🔒
 
 ## Realtime
 
-WS /ws/game/{room_code}?token=<access_token>
+WS /ws/game/{room_code}?token=<access_token> 🔒
 
 ---
 

@@ -6,21 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { quizService } from "@/services/quizService";
 import { Quiz } from "@/types";
 
-const publicLibrary = [
-  {
-    title: "🇻🇳 Lịch Sử Việt Nam",
-    meta: ["20 câu hỏi", "By @hoa_nguyen"],
-    tags: ["Lịch sử", "⭐ 4.9"],
-    plays: "1,204 lượt",
-  },
-  {
-    title: "💻 Lập Trình Python",
-    meta: ["12 câu hỏi", "By @dev_tuan"],
-    tags: ["Tech", "⭐ 4.7"],
-    plays: "892 lượt",
-  },
-];
-
 const recentActivities = [
   {
     dot: "gold",
@@ -93,16 +78,26 @@ export default function DashboardScreen() {
     loadQuizzes();
   }, []);
 
-  const stats = useMemo(
-    () => [
-      { value: Math.max(quizzes.length * 3, quizzes.length), label: "Game đã chơi", color: "purple" },
-      { value: quizzes.length ? "7,840" : "0", label: "Điểm TB", color: "cyan" },
-      { value: quizzes.filter((quiz) => quiz.is_public).length, label: "Quiz public", color: "gold" },
-    ],
-    [quizzes]
+  const myQuizzes = useMemo(
+    () => quizzes.filter((quiz) => quiz.created_by === user?.id),
+    [quizzes, user?.id]
   );
 
-  const pendingQuizCount = quizzes.length || 3;
+  const stats = useMemo(
+    () => [
+      { value: Math.max(myQuizzes.length * 3, myQuizzes.length), label: "Game đã chơi", color: "purple" },
+      { value: myQuizzes.length ? "7,840" : "0", label: "Điểm TB", color: "cyan" },
+      { value: myQuizzes.filter((quiz) => quiz.is_public).length, label: "Quiz public", color: "gold" },
+    ],
+    [myQuizzes]
+  );
+
+  const publicQuizzes = useMemo(
+    () => quizzes.filter((quiz) => quiz.is_public && quiz.created_by !== user?.id),
+    [quizzes, user?.id]
+  );
+
+  const pendingQuizCount = myQuizzes.length || 3;
   const displayName = user?.username || "Minh Khoa";
 
   const handleJoinRoom = (event: FormEvent<HTMLFormElement>) => {
@@ -166,8 +161,8 @@ export default function DashboardScreen() {
                   <span>Vui lòng chờ trong giây lát</span>
                 </div>
               </div>
-            ) : quizzes.length > 0 ? (
-              quizzes.map((quiz) => (
+            ) : myQuizzes.length > 0 ? (
+              myQuizzes.map((quiz) => (
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
@@ -180,9 +175,34 @@ export default function DashboardScreen() {
                   </div>
                   <div className="quiz-card-footer">
                     <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
-                    <button className="play-btn" onClick={() => router.push("/create-room")}>
-                      ▶ Chơi ngay
-                    </button>
+                    <div className="quiz-card-actions">
+                      <button className="play-btn" onClick={() => router.push("/create-room")}>
+                        ▶ Chơi ngay
+                      </button>
+                      <button
+                        className="edit-btn"
+                        onClick={() => router.push(`/editor/${quiz.id}`)}
+                        title="Sửa quiz"
+                      >
+                        ✎ Sửa
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={async () => {
+                          if (confirm("Bạn chắc chắn muốn xóa quiz này?")) {
+                            try {
+                              await quizService.deleteQuiz(quiz.id);
+                              setQuizzes((prev) => prev.filter((q) => q.id !== quiz.id));
+                            } catch (err) {
+                              alert("Không xóa được quiz. Vui lòng thử lại.");
+                            }
+                          }
+                        }}
+                        title="Xóa quiz"
+                      >
+                        🗑 Xóa
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))
@@ -215,26 +235,40 @@ export default function DashboardScreen() {
             <button className="section-action">Xem tất cả →</button>
           </div>
           <div className="quiz-grid">
-            {publicLibrary.map((quiz) => (
-              <article className="quiz-card" key={quiz.title}>
-                <div className="quiz-card-title">{quiz.title}</div>
+            {publicQuizzes.length > 0 ? (
+              publicQuizzes.map((quiz) => (
+                <article className="quiz-card" key={quiz.id}>
+                  <div className="quiz-card-title">{quiz.title}</div>
+                  <div className="quiz-card-meta">
+                    <span>{getQuestionCount(quiz) || "Chưa rõ"} câu hỏi</span>
+                    <span>{quiz.description || "Chưa có mô tả"}</span>
+                  </div>
+                  <div className="quiz-card-tags">
+                    <span className="tag">Public</span>
+                    <span className="tag cyan">Có thể chia sẻ</span>
+                  </div>
+                  <div className="quiz-card-footer">
+                    <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
+                    <button className="play-btn" onClick={() => router.push("/create-room")}>
+                      ▶ Dùng ngay
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <article className="quiz-card">
+                <div className="quiz-card-title">Chưa có quiz public</div>
                 <div className="quiz-card-meta">
-                  {quiz.meta.map((item) => (
-                    <span key={item}>{item}</span>
-                  ))}
+                  <span>Chưa có quiz công khai từ người dùng khác.</span>
                 </div>
                 <div className="quiz-card-tags">
-                  <span className="tag">{quiz.tags[0]}</span>
-                  <span className="tag gold">{quiz.tags[1]}</span>
+                  <span className="tag">Trống</span>
                 </div>
                 <div className="quiz-card-footer">
-                  <span className="quiz-card-note">{quiz.plays}</span>
-                  <button className="play-btn" onClick={() => router.push("/create-room")}>
-                    ▶ Dùng ngay
-                  </button>
+                  <span className="quiz-card-note">Quay lại sau</span>
                 </div>
               </article>
-            ))}
+            )}
           </div>
         </main>
 

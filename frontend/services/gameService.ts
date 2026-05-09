@@ -1,10 +1,20 @@
 import apiClient from "./api";
 import { GameRoom, RoomPlayer, GameResult, ChatMessage } from "@/types";
 
+export interface CreateRoomPayload {
+  quiz_id: string;
+  max_players?: number;
+  shuffle_questions?: boolean;
+  chat_enabled?: boolean;
+}
+
 export const gameService = {
   // Create game room
-  createRoom: async (data: { quiz_id: string }): Promise<GameRoom> => {
-    const response = await apiClient.post<GameRoom>("/rooms", data);
+  createRoom: async (data: CreateRoomPayload): Promise<GameRoom> => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const response = await apiClient.post<GameRoom>("/rooms", data, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
     return response.data;
   },
 
