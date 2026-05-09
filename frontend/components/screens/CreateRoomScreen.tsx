@@ -75,7 +75,6 @@ export default function CreateRoomScreen() {
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
   const [createdRoom, setCreatedRoom] = useState<GameRoom | null>(null);
   const [maxPlayers, setMaxPlayers] = useState(30);
-  const [allowLateJoin, setAllowLateJoin] = useState(true);
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
   const [roomChat, setRoomChat] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -221,17 +220,6 @@ export default function CreateRoomScreen() {
                 </div>
               </div>
 
-              <div className="setting-item">
-                <div className="setting-label">Cho phép join muộn</div>
-                <div className="setting-toggle-row">
-                  <div className="setting-toggle-label">{allowLateJoin ? "Bật" : "Tắt"}</div>
-                  <button
-                    className={`setting-toggle on-primary${allowLateJoin ? " is-on" : ""}`}
-                    onClick={() => setAllowLateJoin((value) => !value)}
-                    aria-label="Bật tắt join muộn"
-                  />
-                </div>
-              </div>
 
               <div className="setting-item">
                 <div className="setting-label">Shuffle câu hỏi</div>
