@@ -9,27 +9,21 @@ from app.models.user_auth.users import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     user = register_user(db, user_data.username, user_data.email, user_data.password)
-    tokens = create_tokens(db, user.id)
+    tokens = create_tokens(user.id)
 
-    return {
-        "user": UserResponse.from_orm(user).dict()  
-    
-        #"tokens": TokenResponse(
-           # access_token=tokens["access_token"],
-           # refresh_token=tokens["refresh_token"],
-           # expires_in=tokens["expires_in"]
-        #).dict()
-        
-        
-    }
+    return TokenResponse(
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+        expires_in=tokens["expires_in"]
+    )
 
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
     user = authenticate_user(db, credentials.username, credentials.password)
-    tokens = create_tokens(db, user.id)
+    tokens = create_tokens(user.id)
 
     return TokenResponse(
         access_token=tokens["access_token"],
@@ -43,8 +37,8 @@ def me(current_user: UUID = Depends(get_current_user), db: Session = Depends(get
     return UserResponse.from_orm(user)
 
 @router.post("/refresh", response_model=AccessTokenResponse)
-def refresh(data: TokenRefresh, db: Session = Depends(get_db)):
-    tokens = refresh_access_token(db, data.refresh_token)
+def refresh(data: TokenRefresh):
+    tokens = refresh_access_token(data.refresh_token)
 
     return AccessTokenResponse(
         access_token=tokens["access_token"],
@@ -52,6 +46,6 @@ def refresh(data: TokenRefresh, db: Session = Depends(get_db)):
     )
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
-    logout_user(db, current_user)
+def logout(current_user: UUID = Depends(get_current_user)):
+    logout_user(current_user)
     return None

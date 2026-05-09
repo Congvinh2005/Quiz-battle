@@ -8,7 +8,7 @@ Backend đã có sẵn các thành phần chính sau:
 
 - Đăng ký, đăng nhập, làm mới access token và đăng xuất.
 - Xác thực JWT bằng access token và refresh token.
-- Lưu refresh token vào PostgreSQL để có thể vô hiệu hóa khi logout.
+- Lưu refresh token vào Redis để có thể vô hiệu hóa khi logout.
 - Khởi tạo schema tự động khi backend khởi động.
 - Hỗ trợ CORS cho frontend local.
 - Có script kiểm tra kết nối PostgreSQL.
@@ -97,7 +97,7 @@ Base URL: `/api/v1`
 
 #### `POST /auth/register`
 
-Tạo tài khoản mới.
+Tạo tài khoản mới và trả về bộ token đăng nhập ban đầu.
 
 Request body:
 
@@ -155,6 +155,10 @@ Access token hiện tại chỉ chứa các thông tin tối thiểu để xác 
 
 - `sub`: UUID của user.
 - `exp`: thời điểm token hết hạn.
+- `type`: `access`.
+- `jti`: định danh duy nhất của token.
+
+Refresh token cũng mang `sub`, `exp`, `type=refresh` và `jti`; phần `jti` được lưu trong Redis để kiểm tra và thu hồi.
 
 Ví dụ payload sau khi decode:
 
