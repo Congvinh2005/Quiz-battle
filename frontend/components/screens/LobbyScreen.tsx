@@ -2,6 +2,7 @@
 
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { gameService } from "@/services/gameService";
 import { GameRoom, RoomPlayer } from "@/types";
 
@@ -56,13 +57,17 @@ function getInitials(name: string) {
 
 export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatLine[]>(demoChat);
   const [chatInput, setChatInput] = useState("");
+  const [joinDisplayName, setJoinDisplayName] = useState(user?.username || "");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   useEffect(() => {
     const loadRoom = async () => {
@@ -90,16 +95,21 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const displayPlayers = useMemo<DisplayPlayer[]>(() => {
     if (players.length === 0) return demoPlayers;
 
-    return players.map((player, index) => ({
+    return players.map((player) => ({
       id: player.id,
       display_name: player.display_name,
       score: player.score,
-      isHost: index === 0,
+      isHost: player.user_id === room?.host_id,
     }));
-  }, [players]);
+  }, [players, room?.host_id]);
+
+  // Check if current user is already in the room
+  const currentUserInRoom = useMemo(() => {
+    return players.some((player) => player.user_id === user?.id);
+  }, [players, user]);
 
   const displayRoomCode = room?.room_code || roomCode || "GX7R2K";
-  const maxPlayers = 30;
+  const maxPlayers = room?.settings?.max_players || 30;
   const emptySlots = Math.max(0, Math.min(2, maxPlayers - displayPlayers.length));
   const isPlaying = room?.status === "PLAYING";
 
@@ -110,6 +120,27 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
     setChatMessages((current) => [...current, { name: "Bạn", text }]);
     setChatInput("");
+  };
+
+  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!joinDisplayName.trim()) {
+      setError("Vui lòng nhập tên hiển thị.");
+      return;
+    }
+
+    try {
+      setIsJoining(true);
+      setError(null);
+      await gameService.joinRoom(displayRoomCode, joinDisplayName);
+      // Refresh players list after joining
+      const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
+      setPlayers(updatedPlayers);
+    } catch (err) {
+      setError("Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.");
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   const handleStartGame = async () => {
@@ -131,6 +162,19 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     }
   };
 
+  const handleLeaveRoom = async () => {
+    try {
+      setIsLeaving(true);
+      setError(null);
+      await gameService.leaveRoom(displayRoomCode);
+      router.push("/dashboard");
+    } catch (err) {
+      setError("Không thể rời phòng lúc này. Vui lòng thử lại.");
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
   return (
     <div className="lobby-wrap">
       <div className="lobby-header">
@@ -145,6 +189,25 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       </div>
 
       {error && <div className="lobby-error">{error}</div>}
+
+      {!currentUserInRoom && (
+        <form className="join-form-card" onSubmit={handleJoinRoom}>
+          <div className="join-form-title">📍 Nhập tên để vào phòng</div>
+          <div className="join-form-row">
+            <input
+              className="join-input"
+              type="text"
+              placeholder="Tên của bạn..."
+              value={joinDisplayName}
+              onChange={(e) => setJoinDisplayName(e.target.value)}
+              disabled={isJoining}
+            />
+            <button className="join-btn" type="submit" disabled={isJoining}>
+              {isJoining ? "Đang vào..." : "✓ Vào phòng"}
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="lobby-grid">
         <section className="players-area">
@@ -183,12 +246,12 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         <aside className="lobby-right">
           <div className="quiz-preview-card">
             <div className="qp-icon">🌍</div>
-            <div className="qp-title">Địa Lý Thế Giới</div>
+            <div className="qp-title">{room?.quiz?.title || "Địa Lý Thế Giới"}</div>
             <div className="qp-meta">
-              <span>📝 10 câu hỏi</span>
-              <span>⏱ 30 giây / câu</span>
-              <span>⭐ Độ khó: Trung bình</span>
-              <span>🔀 Câu hỏi bị shuffle</span>
+              <span>📝 {room?.quiz?.question_count || 10} câu hỏi</span>
+              <span>⏱ {room?.quiz?.total_duration_formatted || "~5m 30s"}</span>
+              
+              <span>🔀 {room?.settings?.shuffle_questions ? "Câu hỏi bị shuffle" : "Câu hỏi không shuffle"}</span>
               {room?.quiz_id && <span>Quiz ID: {room.quiz_id}</span>}
             </div>
           </div>
@@ -218,8 +281,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             </form>
           </div>
 
-          <button className="btn-start" onClick={handleStartGame} disabled={isStarting || isPlaying}>
+          <button className="btn-start" onClick={handleStartGame} disabled={isStarting || isPlaying || isLeaving}>
             {isStarting ? "Đang bắt đầu..." : isPlaying ? "Đang chơi" : `🚀 Bắt đầu game! (${displayPlayers.length} người)`}
+          </button>
+          <button className="btn-leave" onClick={handleLeaveRoom} disabled={isLeaving}>
+            {isLeaving ? "Đang rời phòng..." : "↩ Rời phòng"}
           </button>
         </aside>
       </div>

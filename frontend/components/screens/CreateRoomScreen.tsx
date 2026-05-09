@@ -12,7 +12,7 @@ interface SelectableQuiz {
   title: string;
   icon: string;
   questionCount: number;
-  secondsPerQuestion: number;
+  totalDurationSeconds: number;
   isDemo?: boolean;
 }
 
@@ -22,7 +22,7 @@ const demoQuizzes: SelectableQuiz[] = [
     title: "Địa Lý Thế Giới",
     icon: "🌍",
     questionCount: 10,
-    secondsPerQuestion: 30,
+    totalDurationSeconds: 330,
     isDemo: true,
   },
   {
@@ -30,7 +30,7 @@ const demoQuizzes: SelectableQuiz[] = [
     title: "Khoa Học Tự Nhiên",
     icon: "🔬",
     questionCount: 15,
-    secondsPerQuestion: 20,
+    totalDurationSeconds: 345,
     isDemo: true,
   },
   {
@@ -38,7 +38,7 @@ const demoQuizzes: SelectableQuiz[] = [
     title: "Âm Nhạc Việt Nam",
     icon: "🎵",
     questionCount: 8,
-    secondsPerQuestion: 30,
+    totalDurationSeconds: 264,
     isDemo: true,
   },
 ];
@@ -47,21 +47,28 @@ const iconBackgrounds = ["rgba(124,58,237,.15)", "rgba(6,182,212,.1)", "rgba(245
 
 function toSelectableQuiz(quiz: Quiz, index: number): SelectableQuiz {
   const icons = ["🌍", "🔬", "🎵", "💻", "📚", "⚡"];
+  const questionCount = quiz.question_count ?? quiz.questions?.length ?? 0;
+  const totalDurationSeconds =
+    quiz.total_duration_seconds ??
+    ((quiz.questions?.reduce((sum, q) => sum + (q.time_limit || 0), 0) ?? 0) + questionCount * 3);
 
   return {
     id: quiz.id,
     title: quiz.title,
     icon: icons[index % icons.length],
-    questionCount: quiz.questions?.length || 0,
-    secondsPerQuestion: quiz.questions?.[0]?.time_limit || 30,
+    questionCount,
+    totalDurationSeconds,
   };
 }
 
-function estimateDuration(questionCount: number, secondsPerQuestion: number) {
-  if (!questionCount) return "~ chưa rõ";
-
-  const minutes = Math.max(1, Math.round((questionCount * secondsPerQuestion) / 60));
-  return `~${minutes} phút`;
+function estimateDuration(totalSeconds: number) {
+  if (!totalSeconds) return "~ chưa rõ";
+  const minutes = totalSeconds / 60;
+  
+  if (minutes < 1) {
+    return `~${totalSeconds}s`;
+  }
+  return `~${Math.round(minutes)} phút`;
 }
 
 function makePreviewCode(room?: GameRoom | null) {
@@ -129,7 +136,12 @@ export default function CreateRoomScreen() {
     try {
       setIsSubmitting(true);
       setError(null);
-      const room = await gameService.createRoom({ quiz_id: selectedRealQuiz.id });
+      const room = await gameService.createRoom({
+        quiz_id: selectedRealQuiz.id,
+        max_players: maxPlayers,
+        shuffle_questions: shuffleQuestions,
+        chat_enabled: roomChat,
+      });
       setCreatedRoom(room);
       router.push(`/room/${room.room_code}`);
     } catch (err) {
@@ -186,7 +198,7 @@ export default function CreateRoomScreen() {
                       <div className="quiz-info">
                         <div className="quiz-name">{quiz.title}</div>
                         <div className="quiz-meta-small">
-                          {quiz.questionCount || "Chưa rõ"} câu • {quiz.secondsPerQuestion}s/câu
+                          {quiz.questionCount || "Chưa rõ"} câu • {estimateDuration(quiz.totalDurationSeconds)}
                         </div>
                       </div>
                       <div className={`quiz-check${selected ? " checked" : ""}`}>{selected ? "✓" : ""}</div>
@@ -260,7 +272,7 @@ export default function CreateRoomScreen() {
             </div>
           </div>
 
-          <div className="preview-detail">
+            <div className="preview-detail">
             <div className="preview-row">
               <span className="preview-row-label">Quiz</span>
               <span className="preview-row-val">
@@ -269,12 +281,12 @@ export default function CreateRoomScreen() {
             </div>
             <div className="preview-row">
               <span className="preview-row-label">Số câu hỏi</span>
-              <span className="preview-row-val">{selectedQuiz?.questionCount || "Chưa rõ"} câu</span>
+              <span className="preview-row-val">{selectedRealQuiz?.questions?.length || selectedQuiz?.questionCount || "Chưa rõ"} câu</span>
             </div>
             <div className="preview-row">
               <span className="preview-row-label">Thời gian</span>
               <span className="preview-row-val">
-                {selectedQuiz ? estimateDuration(selectedQuiz.questionCount, selectedQuiz.secondsPerQuestion) : "-"}
+                {selectedQuiz ? estimateDuration(selectedQuiz.totalDurationSeconds) : "-"}
               </span>
             </div>
             <div className="preview-row">

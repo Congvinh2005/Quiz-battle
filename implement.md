@@ -509,9 +509,9 @@ Cần đảm bảo:
 ## Room
 
 * POST /rooms 🔒(Done)
-* GET /rooms/{room_code} 🔒
-* POST /rooms/{room_code}/join 🔒
-* POST /rooms/{room_code}/leave 🔒
+* GET /rooms/{room_code} 🔒(Done)
+* POST /rooms/{room_code}/join 🔒(Continue)
+* POST /rooms/{room_code}/leave 🔒(Continue)
 * GET /rooms/{room_code}/players 🔒
 * POST /rooms/{room_code}/start 🔒
 

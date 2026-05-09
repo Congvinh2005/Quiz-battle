@@ -79,11 +79,51 @@ def create_room(payload: dict, current_user: UUID = Depends(get_current_user), d
 
 
 @router.get("/{room_code}", response_model=dict)
-def get_room(room_code: str, db: Session = Depends(get_db)):
+def get_room(room_code: str, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
     room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
-    return _serialize_room(room)
+
+    # Get quiz preview with question count and total duration
+    quiz = room.quiz
+    question_count = len(quiz.questions) if quiz.questions else 0
+    
+    # Calculate total duration: sum of time_limits + (question_count * 3 seconds)
+    time_limit_sum = sum(q.time_limit or 0 for q in quiz.questions) if quiz.questions else 0
+    total_duration_seconds = time_limit_sum + (question_count * 3)
+    total_duration_minutes = total_duration_seconds // 60
+    total_duration_remaining = total_duration_seconds % 60
+
+    # Get all players
+    players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+    serialized_players = [_serialize_player(player) for player in players]
+
+    return {
+        "id": str(room.id),
+        "room_code": room.room_code,
+        "host_id": str(room.host_id) if room.host_id else None,
+        "status": room.status,
+        "created_at": room.created_at,
+        "started_at": room.started_at,
+        "ended_at": room.ended_at,
+        "quiz": {
+            "id": str(quiz.id),
+            "title": quiz.title,
+            "description": quiz.description,
+            "question_count": question_count,
+            "total_duration_seconds": total_duration_seconds,
+            "total_duration_formatted": f"~{total_duration_minutes}m {total_duration_remaining}s" if total_duration_minutes > 0 else f"~{total_duration_remaining}s",
+            "created_by": str(quiz.created_by) if quiz.created_by else None,
+        },
+        "players": serialized_players,
+        "player_count": len(serialized_players),
+        "settings": {
+            "max_players": room.max_players,
+            "shuffle_questions": room.shuffle_questions,
+            "chat_enabled": room.chat_enabled,
+            "current_question_order": room.current_question_order,
+        },
+    }
 
 
 @router.post("/{room_code}/join", response_model=dict)
@@ -92,18 +132,31 @@ def join_room(room_code: str, payload: dict, current_user: UUID = Depends(get_cu
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
+    # Check if player already in room
+    existing = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
+    if not existing:
+        # Check if room is full
+        player_count = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).count()
+        if player_count >= room.max_players:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is full")
+
+        # Check if room is already playing
+        if room.status != "WAITING":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is not in WAITING status")
+
     display_name = payload.get("display_name")
     if not display_name:
         user = db.query(User).filter(User.id == current_user).first()
         display_name = user.username if user else "Player"
 
-    existing = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
     if existing:
+        # Update display name if already in room
         existing.display_name = display_name
         db.commit()
         db.refresh(existing)
         return _serialize_player(existing)
 
+    # Add new player
     player = RoomPlayer(room_id=room.id, user_id=current_user, display_name=display_name, score=0)
     db.add(player)
     db.commit()
@@ -116,6 +169,12 @@ def leave_room(room_code: str, current_user: UUID = Depends(get_current_user), d
     room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+
+    # If host leaves, close the room completely.
+    if room.host_id == current_user:
+        db.delete(room)
+        db.commit()
+        return None
 
     player = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
     if player:

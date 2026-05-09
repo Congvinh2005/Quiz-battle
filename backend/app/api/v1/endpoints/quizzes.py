@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from uuid import UUID
 from typing import List
 
@@ -18,18 +19,27 @@ def list_quizzes(
     db: Session = Depends(get_db),
 ):
     quizzes = (
-        db.query(Quiz)
+        db.query(
+            Quiz,
+            func.count(Question.id).label("question_count"),
+            func.coalesce(func.sum(Question.time_limit), 0).label("time_limit_sum"),
+        )
+        .outerjoin(Question, Question.quiz_id == Quiz.id)
         .filter((Quiz.created_by == current_user) | (Quiz.is_public.is_(True)))
+        .group_by(Quiz.id)
         .all()
     )
     result = []
-    for q in quizzes:
+    for q, question_count, time_limit_sum in quizzes:
+        total_duration_seconds = int(time_limit_sum or 0) + (int(question_count or 0) * 3)
         result.append({
             "id": str(q.id),
             "title": q.title,
             "description": q.description,
             "is_public": q.is_public,
             "created_by": str(q.created_by) if q.created_by else None,
+            "question_count": int(question_count or 0),
+            "total_duration_seconds": total_duration_seconds,
         })
     return result
 
