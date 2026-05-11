@@ -5,11 +5,13 @@
 Đã implement 2 tính năng chính:
 
 ### 1. **Nút "Next Question" trong GameplayScreen** ✅
+
 - Chỉ host có thể thấy và sử dụng
 - Cho phép host chuyển sang câu hỏi tiếp theo
 - Tự động kết thúc game nếu đã hết câu
 
 ### 2. **Auto-Sync Guests Join Room** ✅
+
 - Khi guest vào phòng code, tự động join mà không cần click nút
 - WebSocket realtime broadcast PLAYER_JOINED cho tất cả
 - Host và guest đồng bộ thời gian qua WebSocket
@@ -19,6 +21,7 @@
 ## 🔄 Workflow
 
 ### **Phase 1: Host Tạo Phòng**
+
 ```
 Host → POST /rooms (create room)
 ↓
@@ -28,6 +31,7 @@ Frontend: Navigate tới /room/{roomCode} (Lobby)
 ```
 
 ### **Phase 2: Guests Vào Phòng (Auto-Sync)**
+
 ```
 Guest → Navigate tới /room/{roomCode}
 ↓
@@ -44,6 +48,7 @@ All clients (host + guests) see new player in real-time
 ```
 
 ### **Phase 3: Host Starts Game**
+
 ```
 Host → Click "🚀 Bắt đầu game!"
 ↓
@@ -57,6 +62,7 @@ All players redirect to /game/{roomCode}
 ```
 
 ### **Phase 4: Gameplay (Players Answer)**
+
 ```
 Player → Select option + Click "Trả lời"
 ↓
@@ -75,6 +81,7 @@ All players see updated leaderboard real-time
 ```
 
 ### **Phase 5: Host Advances Question**
+
 ```
 Host → Click "Câu Tiếp →"
 ↓
@@ -92,6 +99,7 @@ All players:
 ```
 
 ### **Phase 6: Game Ends & Results**
+
 ```
 Last question answered
 ↓
@@ -113,10 +121,12 @@ All players redirect to /results/{roomCode}
 ### Frontend
 
 #### **1. GameplayScreen** ✅ NEW
+
 **File:** `frontend/components/screens/GameplayScreen_updated.tsx`
 **Replace:** `frontend/components/screens/GameplayScreen.tsx`
 
 **Features Added:**
+
 - ✅ WebSocket real-time listeners (QUESTION_CHANGED, PLAYER_ANSWERED, GAME_ENDED)
 - ✅ Submit answer with response time tracking
 - ✅ "Next Question" button (only for host)
@@ -126,14 +136,16 @@ All players redirect to /results/{roomCode}
 - ✅ Timer calculation
 
 **Key State:**
+
 ```typescript
 const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
 const [isNextQuestionLoading, setIsNextQuestionLoading] = useState(false);
 const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
-const questionStartTimeRef = useRef<number>(0);  // Track response time
+const questionStartTimeRef = useRef<number>(0); // Track response time
 ```
 
 **Handlers:**
+
 ```typescript
 const handleSubmitAnswer = async (selectedOptionId: string) => {
   const responseTime = (Date.now() - questionStartTimeRef.current) / 1000;
@@ -141,21 +153,23 @@ const handleSubmitAnswer = async (selectedOptionId: string) => {
     selected_option_id: selectedOptionId,
     response_time: responseTime,
   });
-}
+};
 
 const handleNextQuestion = async () => {
   const result = await gameService.nextQuestion(roomCode);
   if (result?.status === "FINISHED") {
     router.push(`/results/${roomCode}`);
   }
-}
+};
 ```
 
 #### **2. LobbyScreen** ✅ NEW
+
 **File:** `frontend/components/screens/LobbyScreen_updated.tsx`
 **Replace:** `frontend/components/screens/LobbyScreen.tsx`
 
 **Features Added:**
+
 - ✅ Auto-join guests (no click needed!)
 - ✅ Track join attempt to prevent duplicate joins
 - ✅ WebSocket listeners (PLAYER_JOINED, PLAYER_LEFT, GAME_STARTED, ROOM_CLOSED, CHAT_MESSAGE)
@@ -165,13 +179,17 @@ const handleNextQuestion = async () => {
 - ✅ Auto-redirect on room close
 
 **Key Logic:**
+
 ```typescript
 // Auto-join guests when they enter the room
 useEffect(() => {
-  if (!roomCode || !user || isAutoJoining || autoJoinAttemptedRef.current) return;
+  if (!roomCode || !user || isAutoJoining || autoJoinAttemptedRef.current)
+    return;
 
-  const userAlreadyInRoom = players.some((player) => player.user_id === user.id);
-  if (userAlreadyInRoom) return;  // Skip if already joined
+  const userAlreadyInRoom = players.some(
+    (player) => player.user_id === user.id,
+  );
+  if (userAlreadyInRoom) return; // Skip if already joined
 
   const autoJoin = async () => {
     await gameService.joinRoom(roomCode, user.username || "Player");
@@ -190,6 +208,7 @@ useEffect(() => {
 ## 🎯 UI Buttons Added
 
 ### GameplayScreen
+
 ```
 ┌─────────────────────────────────────┐
 │  [Trả lời] [Câu Tiếp →]  (host)    │
@@ -213,6 +232,7 @@ useEffect(() => {
 ## 🔌 WebSocket Events
 
 ### Server → Client (LobbyScreen)
+
 ```json
 {
   "type": "PLAYER_JOINED",
@@ -243,6 +263,7 @@ useEffect(() => {
 ```
 
 ### Server → Client (GameplayScreen)
+
 ```json
 {
   "type": "QUESTION_CHANGED",
@@ -284,12 +305,14 @@ useEffect(() => {
 ## 🎨 UI Changes
 
 ### LobbyScreen
+
 - ✅ Remove manual "Join Room" form (auto-join replaces it)
 - ✅ Show "✓ Đang tự động vào phòng..." message during auto-join
 - ✅ Real-time player count + status
 - ✅ Real-time chat with sending capability
 
 ### GameplayScreen
+
 - ✅ Add "Submit Answer" button
 - ✅ Add "Next Question" button (host-only)
 - ✅ Real-time leaderboard
@@ -302,6 +325,7 @@ useEffect(() => {
 ## 🚀 Implementation Steps
 
 1. **Replace Frontend Files:**
+
    ```bash
    cp frontend/components/screens/GameplayScreen_updated.tsx frontend/components/screens/GameplayScreen.tsx
    cp frontend/components/screens/LobbyScreen_updated.tsx frontend/components/screens/LobbyScreen.tsx
@@ -330,12 +354,13 @@ useEffect(() => {
 ## 💡 Key Improvements
 
 ### Auto-Join Logic
+
 ```typescript
 // Prevents duplicate joins
 const autoJoinAttemptedRef = useRef(false);
 
 // Checks if user already in room
-const userAlreadyInRoom = players.some(p => p.user_id === user.id);
+const userAlreadyInRoom = players.some((p) => p.user_id === user.id);
 
 // Only joins once
 if (!autoJoinAttemptedRef.current && !userAlreadyInRoom) {
@@ -345,6 +370,7 @@ if (!autoJoinAttemptedRef.current && !userAlreadyInRoom) {
 ```
 
 ### Response Time Tracking
+
 ```typescript
 const questionStartTimeRef = useRef<number>(0);
 
@@ -356,6 +382,7 @@ const responseTime = (Date.now() - questionStartTimeRef.current) / 1000;
 ```
 
 ### Real-Time Synchronization
+
 ```typescript
 // Host starts → all get GAME_STARTED
 // Player answers → all see updated leaderboard
@@ -418,6 +445,7 @@ Host & Guests Synchronized Game Flow:
 **Status:** ✅ Ready for Integration
 
 All files prepared:
+
 - `GameplayScreen_updated.tsx` - Ready to replace
 - `LobbyScreen_updated.tsx` - Ready to replace
 - Backend gameplay APIs - Already implemented

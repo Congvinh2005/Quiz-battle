@@ -7,9 +7,11 @@
 #### 1. **Game Service (`backend/app/services/game_service.py`)**
 
 **Helper Functions:**
+
 - `_get_leaderboard()` - Returns sorted leaderboard by score
 
 **Implemented Endpoints:**
+
 - ✅ `POST /rooms` - Create room (auto-adds host as player)
 - ✅ `GET /rooms/{room_code}` - Get room details
 - ✅ `GET /rooms/{room_code}/state` - Get full game state for refresh
@@ -28,6 +30,7 @@
 #### 2. **API Endpoints (`backend/app/api/v1/endpoints/rooms.py`)**
 
 All endpoints registered and exported to router:
+
 ```python
 - POST /rooms
 - GET /rooms/{room_code}
@@ -55,6 +58,7 @@ All endpoints registered and exported to router:
 ## 🔄 Workflow Flow
 
 ### 1. **Host Creates Room & Auto-Joins**
+
 ```
 Host calls: POST /rooms
 {
@@ -71,6 +75,7 @@ Backend:
 ```
 
 **Response:**
+
 ```json
 {
   "id": "room-uuid",
@@ -82,6 +87,7 @@ Backend:
 ```
 
 ### 2. **Guests Join Room (同步同时)**
+
 ```
 Guest calls: POST /rooms/{room_code}/join
 {
@@ -105,6 +111,7 @@ All connected clients receive:
 ```
 
 ### 3. **Host Starts Game**
+
 ```
 Host calls: POST /rooms/{room_code}/start
 ↓
@@ -120,6 +127,7 @@ Room status changes: WAITING → PLAYING
 ```
 
 **QUESTION_CHANGED payload:**
+
 ```json
 {
   "type": "QUESTION_CHANGED",
@@ -133,8 +141,8 @@ Room status changes: WAITING → PLAYING
       "time_limit": 30,
       "points": 100,
       "answer_options": [
-        {"id": "opt-1", "content": "Option A"},
-        {"id": "opt-2", "content": "Option B"}
+        { "id": "opt-1", "content": "Option A" },
+        { "id": "opt-2", "content": "Option B" }
       ]
     }
   }
@@ -142,6 +150,7 @@ Room status changes: WAITING → PLAYING
 ```
 
 ### 4. **Players Submit Answers (Synchronized Timing)**
+
 ```
 Player calls: POST /rooms/{room_code}/answers
 {
@@ -165,6 +174,7 @@ All clients receive updated leaderboard in real-time
 ```
 
 ### 5. **Host Advances to Next Question**
+
 ```
 Host calls: POST /rooms/{room_code}/next-question
 ↓
@@ -178,6 +188,7 @@ Game loop continues until all questions answered
 ```
 
 ### 6. **Game Finishes**
+
 ```
 Host calls: POST /rooms/{room_code}/finish
 (or automatically called when last question answered)
@@ -242,6 +253,7 @@ Room status: FINISHED
 ## 🎯 Frontend Implementation Checklist
 
 ### Updated Files:
+
 - ✅ `frontend/services/gameService.ts` - All gameplay API methods added
   - `submitAnswer(roomCode, payload)`
   - `nextQuestion(roomCode)`
@@ -252,6 +264,7 @@ Room status: FINISHED
 ### Updated Screens (Need Implementation):
 
 #### **LobbyScreen.tsx**
+
 ```typescript
 // Auto-load chat history on mount
 useEffect(() => {
@@ -267,12 +280,13 @@ const handleSendChat = async (message: string) => {
 // Listen for CHAT_MESSAGE events
 useEffect(() => {
   ws.on("CHAT_MESSAGE", (data) => {
-    setMessages(prev => [...prev, data.message]);
+    setMessages((prev) => [...prev, data.message]);
   });
 }, [ws]);
 ```
 
 #### **GameplayScreen.tsx**
+
 ```typescript
 // Submit answer on option selected
 const handleSelectOption = async (optionId: string, responseTime: number) => {
@@ -280,11 +294,11 @@ const handleSelectOption = async (optionId: string, responseTime: number) => {
     selected_option_id: optionId,
     response_time: responseTime,
   });
-  
+
   // Show feedback
   setIsCorrect(result.is_correct);
   setPointsEarned(result.points_earned);
-  
+
   // Update leaderboard
   setLeaderboard(result.leaderboard);
 };
@@ -310,6 +324,7 @@ ws.on("PLAYER_ANSWERED", (data) => {
 ```
 
 #### **ResultScreen.tsx**
+
 ```typescript
 // Get final results
 useEffect(() => {
@@ -327,6 +342,7 @@ results.sort((a, b) => a.rank - b.rank).map((player, idx) => (
 ## 🔐 Key Implementation Details
 
 ### Score Calculation
+
 ```python
 if is_correct:
     if response_time < 3:  # Answered quickly
@@ -338,18 +354,22 @@ else:
 ```
 
 ### Leaderboard Sorting
+
 - Always sorted by `score DESC`
 - Rank assigned by position (1-indexed)
 
 ### Player Answers Constraint
+
 - Composite unique: (room_id, user_id, question_id)
 - Cannot answer same question twice
 
 ### Game Shuffle
+
 - If `shuffle_questions=true`: questions randomized before game starts
 - If `shuffle_questions=false`: questions in original order
 
 ### Chat Validation
+
 - Message max length: 500 chars
 - Chat only enabled if `room.chat_enabled=true`
 - User must be in room to send chat
@@ -359,18 +379,21 @@ else:
 ## 🚀 Running the Implementation
 
 ### Backend Server
+
 ```bash
 cd backend
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Frontend Dev Server
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 ### Test Flow
+
 1. Host creates room → Get room_code
 2. Guest joins room with room_code
 3. Host starts game
@@ -383,6 +406,7 @@ npm run dev
 ## 📝 API Request Examples
 
 ### Submit Answer
+
 ```bash
 curl -X POST http://localhost:8000/rooms/ABC123/answers \
   -H "Authorization: Bearer {token}" \
@@ -394,6 +418,7 @@ curl -X POST http://localhost:8000/rooms/ABC123/answers \
 ```
 
 ### Post Chat
+
 ```bash
 curl -X POST http://localhost:8000/rooms/ABC123/chat \
   -H "Authorization: Bearer {token}" \
@@ -402,6 +427,7 @@ curl -X POST http://localhost:8000/rooms/ABC123/chat \
 ```
 
 ### Next Question
+
 ```bash
 curl -X POST http://localhost:8000/rooms/ABC123/next-question \
   -H "Authorization: Bearer {token}"

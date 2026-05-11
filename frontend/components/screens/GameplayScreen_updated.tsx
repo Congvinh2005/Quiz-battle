@@ -73,6 +73,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const [isNextQuestionLoading, setIsNextQuestionLoading] = useState(false);
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
+  const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const questionStartTimeRef = useRef<number>(0);
 
   // Load initial state and chat messages
@@ -236,6 +237,23 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       console.error(err);
     } finally {
       setIsNextQuestionLoading(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!roomCode) return;
+
+    try {
+      setIsLeavingRoom(true);
+      setError(null);
+      await gameService.leaveRoom(roomCode);
+      wsService.disconnect();
+      router.push("/dashboard");
+    } catch (err) {
+      setError("Không thể rời phòng lúc này. Vui lòng thử lại.");
+      console.error(err);
+    } finally {
+      setIsLeavingRoom(false);
     }
   };
 
@@ -422,6 +440,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           {!leaderboard.length && !isLoading && <div className="mini-board-item">Chưa có bảng xếp hạng.</div>}
         </aside>
       </div>
+
+      <button className="game-leave-btn" onClick={handleLeaveRoom} disabled={isLeavingRoom} type="button">
+        {isLeavingRoom ? "Đang rời phòng..." : "Rời phòng"}
+      </button>
 
       {error && (
         <div className="lobby-error" style={{ marginTop: 16 }}>
