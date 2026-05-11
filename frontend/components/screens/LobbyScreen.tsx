@@ -1,9 +1,10 @@
 "use client";
 
-import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameService } from "@/services/gameService";
+import { wsService } from "@/services/websocketService";
 import { GameRoom, RoomPlayer } from "@/types";
 
 interface LobbyScreenProps {
@@ -69,11 +70,12 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [roomClosedMessage, setRoomClosedMessage] = useState<string | null>(null);
+  const [isRealtimeReady, setIsRealtimeReady] = useState(false);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isRoomNotFoundError = (err: any) => err?.response?.status === 404;
+  const isRoomNotFoundError = useCallback((err: any) => err?.response?.status === 404, []);
 
-  const notifyRoomClosedAndRedirect = (message: string) => {
+  const notifyRoomClosedAndRedirect = useCallback((message: string) => {
     if (redirectTimeoutRef.current) return;
 
     setRoomClosedMessage(message);
@@ -81,7 +83,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     redirectTimeoutRef.current = setTimeout(() => {
       router.push("/dashboard");
     }, 3000);
-  };
+  }, [router]);
 
   useEffect(() => {
     return () => {
@@ -117,30 +119,68 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     if (roomCode) {
       loadRoom();
     }
-  }, [roomCode]);
-// polling chạy ở phía client cho bất kỳ ai
-//  đang mở trang lobby nên cả host lẫn 
-// người chơi đều gọi lại API mỗi 3 giây.
+  }, [roomCode, isRoomNotFoundError, notifyRoomClosedAndRedirect]);
+
   useEffect(() => {
     if (!roomCode || roomClosedMessage) return;
 
-    const intervalId = setInterval(async () => {
-      try {
-        const [roomData, playersData] = await Promise.all([
-          gameService.getRoomByCode(roomCode),
-          gameService.getRoomPlayers(roomCode),
-        ]);
-        setRoom(roomData);
-        setPlayers(playersData);
-      } catch (err) {
-        if (isRoomNotFoundError(err)) {
-          notifyRoomClosedAndRedirect("Host đã rời phòng, phòng đã đóng. Bạn sẽ được chuyển về Dashboard...");
-        }
-      }
-    }, 3000);
+    const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
 
-    return () => clearInterval(intervalId);
-  }, [roomCode, roomClosedMessage]);
+    if (!accessToken) {
+      console.warn("Skip realtime lobby connection: missing access token.");
+      setIsRealtimeReady(true);
+      return;
+    }
+
+    const applyRoomState = (data: any) => {
+      if (data?.room) {
+        setRoom(data.room);
+      }
+
+      if (Array.isArray(data?.players)) {
+        setPlayers(data.players);
+      }
+    };
+
+    const handlePlayerJoined = (data: any) => {
+      applyRoomState(data);
+    };
+
+    const handlePlayerLeft = (data: any) => {
+      applyRoomState(data);
+    };
+
+    const handleGameStarted = (data: any) => {
+      applyRoomState(data);
+      router.push(`/game/${roomCode}`);
+    };
+
+    const handleRoomClosed = (data: any) => {
+      const message = data?.message || "Host đã rời phòng, phòng đã đóng. Bạn sẽ được chuyển về Dashboard...";
+      notifyRoomClosedAndRedirect(message);
+    };
+
+    setIsRealtimeReady(false);
+
+    wsService.on("PLAYER_JOINED", handlePlayerJoined);
+    wsService.on("PLAYER_LEFT", handlePlayerLeft);
+    wsService.on("GAME_STARTED", handleGameStarted);
+    wsService.on("ROOM_CLOSED", handleRoomClosed);
+
+    wsService.connect(accessToken, roomCode).catch((err) => {
+      console.error("Failed to connect websocket:", err);
+    }).finally(() => {
+      setIsRealtimeReady(true);
+    });
+
+    return () => {
+      wsService.off("PLAYER_JOINED", handlePlayerJoined);
+      wsService.off("PLAYER_LEFT", handlePlayerLeft);
+      wsService.off("GAME_STARTED", handleGameStarted);
+      wsService.off("ROOM_CLOSED", handleRoomClosed);
+      wsService.disconnect();
+    };
+  }, [roomCode, roomClosedMessage, notifyRoomClosedAndRedirect, router]);
 
   const displayPlayers = useMemo<DisplayPlayer[]>(() => {
     if (players.length === 0) return demoPlayers;
@@ -247,6 +287,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         <div>
           <h1 className="page-title">👥 Sảnh chờ</h1>
           <p className="lobby-subtitle">Chờ mọi người vào đủ rồi bắt đầu!</p>
+          {!isRealtimeReady && !roomClosedMessage && (
+            <p className="lobby-subtitle" style={{ fontSize: "14px", opacity: 0.75 }}>
+              Đang kết nối realtime...
+            </p>
+          )}
         </div>
         <div className="lobby-code-block">
           <div className="lobby-code-label">Mã phòng</div>

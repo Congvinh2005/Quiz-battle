@@ -173,6 +173,7 @@ export interface WSRoomEvent {
   type:
     | "PLAYER_JOINED"
     | "PLAYER_LEFT"
+    | "ROOM_CLOSED"
     | "GAME_STARTED"
     | "QUESTION_CHANGED"
     | "ANSWER_SUBMITTED"

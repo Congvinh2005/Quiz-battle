@@ -1,46 +1,106 @@
-import io, { Socket } from "socket.io-client";
 import { WSRoomEvent } from "@/types";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
+function buildWebSocketUrl(roomCode: string, token?: string) {
+  const normalizedBaseUrl = WS_URL.startsWith("http") ? WS_URL.replace(/^http/, "ws") : WS_URL;
+  const url = new URL(normalizedBaseUrl);
+  url.pathname = `/ws/game/${roomCode}`;
+
+  if (token) {
+    url.searchParams.set("token", token);
+  }
+
+  return url.toString();
+}
+
 class WebSocketService {
-  private socket: Socket | null = null;
-  private listeners: Map<string, Set<Function>> = new Map();
+  private socket: WebSocket | null = null;
+  private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  private shouldReconnect = false;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private baseReconnectDelayMs = 1000;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private currentToken: string | null = null;
+  private currentRoomCode: string | null = null;
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (!this.shouldReconnect || !this.currentToken || !this.currentRoomCode) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
+
+    const delay = this.baseReconnectDelayMs * Math.pow(2, this.reconnectAttempts);
+    this.reconnectAttempts += 1;
+
+    this.clearReconnectTimer();
+    this.reconnectTimer = setTimeout(() => {
+      this.connect(this.currentToken!, this.currentRoomCode!).catch(() => {
+        // Keep silent here; retries continue until max attempts.
+      });
+    }, delay);
+  }
 
   connect(token: string, roomCode: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.socket = io(WS_URL, {
-          auth: {
-            token,
-          },
-          query: {
-            room_code: roomCode,
-          },
-          reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          reconnectionAttempts: 5,
-        });
+        this.currentToken = token;
+        this.currentRoomCode = roomCode;
+        this.shouldReconnect = true;
+        this.clearReconnectTimer();
 
-        this.socket.on("connect", () => {
-          console.log("WebSocket connected");
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
           resolve();
-        });
+          return;
+        }
 
-        this.socket.on("error", (error) => {
+        if (this.socket) {
+          this.socket.onopen = null;
+          this.socket.onmessage = null;
+          this.socket.onerror = null;
+          this.socket.onclose = null;
+          this.socket.close();
+          this.socket = null;
+        }
+
+        this.socket = new WebSocket(buildWebSocketUrl(roomCode, token));
+
+        this.socket.onopen = () => {
+          console.log("WebSocket connected");
+          this.reconnectAttempts = 0;
+          resolve();
+        };
+
+        this.socket.onerror = (error) => {
           console.error("WebSocket error:", error);
-          reject(error);
-        });
+          if (this.socket?.readyState !== WebSocket.OPEN) {
+            reject(error);
+          }
+        };
 
-        this.socket.on("disconnect", (reason) => {
-          console.log("WebSocket disconnected:", reason);
-        });
+        this.socket.onclose = (event) => {
+          if (event.code !== 1000) {
+            console.log("WebSocket disconnected:", event.reason || event.code);
+            this.scheduleReconnect();
+          }
+        };
 
-        // Generic event listener
-        this.socket.on("message", (event: WSRoomEvent) => {
-          this.notifyListeners(event.type, event.data);
-        });
+        this.socket.onmessage = (event) => {
+          try {
+            const parsed: WSRoomEvent = JSON.parse(event.data);
+            this.notifyListeners(parsed.type, parsed.data);
+          } catch (error) {
+            console.error("Failed to parse websocket message:", error);
+          }
+        };
+
+        console.log("WebSocket connecting...");
       } catch (error) {
         reject(error);
       }
@@ -48,18 +108,30 @@ class WebSocketService {
   }
 
   disconnect(): void {
+    this.shouldReconnect = false;
+    this.reconnectAttempts = 0;
+    this.currentToken = null;
+    this.currentRoomCode = null;
+    this.clearReconnectTimer();
+
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.onopen = null;
+      this.socket.onmessage = null;
+      this.socket.onerror = null;
+      this.socket.onclose = null;
+      this.socket.close();
       this.socket = null;
     }
   }
 
   emit(eventType: string, data: any): void {
-    if (this.socket) {
-      this.socket.emit("message", {
-        type: eventType,
-        data,
-      });
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(
+        JSON.stringify({
+          type: eventType,
+          data,
+        })
+      );
     }
   }
 
@@ -89,7 +161,7 @@ class WebSocketService {
   }
 
   isConnected(): boolean {
-    return this.socket?.connected ?? false;
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 }
 

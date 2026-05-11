@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import List
 
@@ -9,6 +10,7 @@ from app.models.game.game_rooms import GameRoom
 from app.models.game.room_players import RoomPlayer
 from app.models.quiz.quizzes import Quiz
 from app.models.user_auth.users import User
+from app.websockets.game_socket import manager
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
@@ -35,12 +37,21 @@ def _serialize_player(player: RoomPlayer):
     }
 
 
+def _serialize_room_state(room: GameRoom, db: Session):
+    players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+    return {
+        "room": _serialize_room(room),
+        "players": [_serialize_player(player) for player in players],
+        "player_count": len(players),
+    }
+
+
 def _build_room_code() -> str:
     return uuid4().hex[:6].upper()
 
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-def create_room(payload: dict, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
+async def create_room(payload: dict, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
     quiz_id = payload.get("quiz_id")
     if not quiz_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing quiz_id")
@@ -127,7 +138,7 @@ def get_room(room_code: str, current_user: UUID = Depends(get_current_user), db:
 
 
 @router.post("/{room_code}/join", response_model=dict)
-def join_room(room_code: str, payload: dict, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
+async def join_room(room_code: str, payload: dict, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
     room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
@@ -154,6 +165,13 @@ def join_room(room_code: str, payload: dict, current_user: UUID = Depends(get_cu
         existing.display_name = display_name
         db.commit()
         db.refresh(existing)
+        await manager.broadcast(room.room_code, {
+            "type": "PLAYER_JOINED",
+            "data": {
+                **_serialize_room_state(room, db),
+                "player": _serialize_player(existing),
+            },
+        })
         return _serialize_player(existing)
 
     # Add new player
@@ -161,25 +179,52 @@ def join_room(room_code: str, payload: dict, current_user: UUID = Depends(get_cu
     db.add(player)
     db.commit()
     db.refresh(player)
+    await manager.broadcast(room.room_code, {
+        "type": "PLAYER_JOINED",
+        "data": {
+            **_serialize_room_state(room, db),
+            "player": _serialize_player(player),
+        },
+    })
     return _serialize_player(player)
 
 
 @router.post("/{room_code}/leave", status_code=status.HTTP_204_NO_CONTENT)
-def leave_room(room_code: str, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
+async def leave_room(room_code: str, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
     room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
     # If host leaves, close the room completely.
     if room.host_id == current_user:
+        room_state = _serialize_room_state(room, db)
+        await manager.broadcast(room_code, {
+            "type": "ROOM_CLOSED",
+            "data": {
+                **room_state,
+                "reason": "HOST_LEFT",
+                "message": "Host đã rời phòng, phòng đã đóng.",
+            },
+        })
         db.delete(room)
         db.commit()
         return None
 
     player = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
     if player:
+        departed_player = _serialize_player(player)
         db.delete(player)
         db.commit()
+        remaining_players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+        await manager.broadcast(room_code, {
+            "type": "PLAYER_LEFT",
+            "data": {
+                "room_code": room_code,
+                "player": departed_player,
+                "players": [_serialize_player(remaining_player) for remaining_player in remaining_players],
+                "player_count": len(remaining_players),
+            },
+        })
     return None
 
 
@@ -194,14 +239,23 @@ def get_room_players(room_code: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{room_code}/start", response_model=dict)
-def start_game(room_code: str, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
+async def start_game(room_code: str, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
     room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
+    if room.host_id != current_user:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only host can start the game")
+
     room.status = "PLAYING"
+    room.started_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(room)
+
+    await manager.broadcast(room_code, {
+        "type": "GAME_STARTED",
+        "data": _serialize_room_state(room, db),
+    })
     return _serialize_room(room)
 
 

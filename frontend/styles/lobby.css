@@ -267,7 +267,9 @@
 }
 
 .btn-start:disabled {
-  opacity: 0.5;
+  background: linear-gradient(135deg, var(--green), #059669);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+  opacity: 1;
   cursor: not-allowed;
 }
 
