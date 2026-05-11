@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameService } from "@/services/gameService";
@@ -68,6 +68,28 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [roomClosedMessage, setRoomClosedMessage] = useState<string | null>(null);
+  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isRoomNotFoundError = (err: any) => err?.response?.status === 404;
+
+  const notifyRoomClosedAndRedirect = (message: string) => {
+    if (redirectTimeoutRef.current) return;
+
+    setRoomClosedMessage(message);
+    setError(message);
+    redirectTimeoutRef.current = setTimeout(() => {
+      router.push("/dashboard");
+    }, 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const loadRoom = async () => {
@@ -81,6 +103,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         setRoom(roomData);
         setPlayers(playersData);
       } catch (err) {
+        if (isRoomNotFoundError(err)) {
+          notifyRoomClosedAndRedirect("Host đã rời phòng, phòng đã đóng. Bạn sẽ được chuyển về Dashboard...");
+          return;
+        }
+
         setError("Không tải được dữ liệu phòng. Đang hiển thị dữ liệu mẫu để xem giao diện.");
       } finally {
         setIsLoading(false);
@@ -91,6 +118,29 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       loadRoom();
     }
   }, [roomCode]);
+// polling chạy ở phía client cho bất kỳ ai
+//  đang mở trang lobby nên cả host lẫn 
+// người chơi đều gọi lại API mỗi 3 giây.
+  useEffect(() => {
+    if (!roomCode || roomClosedMessage) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const [roomData, playersData] = await Promise.all([
+          gameService.getRoomByCode(roomCode),
+          gameService.getRoomPlayers(roomCode),
+        ]);
+        setRoom(roomData);
+        setPlayers(playersData);
+      } catch (err) {
+        if (isRoomNotFoundError(err)) {
+          notifyRoomClosedAndRedirect("Host đã rời phòng, phòng đã đóng. Bạn sẽ được chuyển về Dashboard...");
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [roomCode, roomClosedMessage]);
 
   const displayPlayers = useMemo<DisplayPlayer[]>(() => {
     if (players.length === 0) return demoPlayers;
@@ -138,6 +188,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
       setPlayers(updatedPlayers);
     } catch (err) {
+      if (isRoomNotFoundError(err)) {
+        notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
+        return;
+      }
+
       setError("Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.");
     } finally {
       setIsJoining(false);
@@ -162,6 +217,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       setRoom(updatedRoom);
       router.push(`/game/${displayRoomCode}`);
     } catch (err) {
+      if (isRoomNotFoundError(err)) {
+        notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
+        return;
+      }
+
       setError("Không thể bắt đầu trò chơi. Kiểm tra backend hoặc quyền host rồi thử lại.");
     } finally {
       setIsStarting(false);
