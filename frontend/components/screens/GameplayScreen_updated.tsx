@@ -120,7 +120,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     if (!accessToken) return;
 
     const handleQuestionChanged = (data: any) => {
-      if (data?.data?.current_question_order) {
+      if (data?.current_question_order) {
         // New question, reset state
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
@@ -131,14 +131,14 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handlePlayerAnswered = (data: any) => {
-      if (data?.data?.leaderboard) {
+      if (data?.leaderboard) {
         setRoomState(prev => {
           if (!prev) return prev;
           return {
             ...prev,
             game_state: {
               ...prev.game_state,
-              leaderboard: data.data.leaderboard,
+              leaderboard: data.leaderboard,
             },
           };
         });
@@ -153,10 +153,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handleChatMessage = (data: any) => {
-      if (data?.data?.user?.username && data?.data?.message) {
+      if (data?.user?.username && data?.message) {
         setChatMessages(prev => [...prev, {
-          name: data.data.user.username,
-          text: data.data.message,
+          name: data.user.username,
+          text: data.message,
         }]);
       }
     };

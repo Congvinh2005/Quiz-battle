@@ -198,7 +198,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     if (!accessToken) return;
 
     const handleQuestionChanged = (data: any) => {
-      if (data?.data?.current_question_order) {
+      if (data?.current_question_order) {
         // New question, reset state
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
@@ -207,7 +207,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         autoAdvanceTriggeredRef.current = false;
         questionStartTimeRef.current = Date.now();
         // Reset timer to new question's time_limit
-        const newTimeLimit = data?.data?.question?.time_limit || 30;
+        const newTimeLimit = data?.question?.time_limit || 30;
         setTimeRemaining(newTimeLimit);
         // Reload room state to get new question
         gameService.getRoomState(roomCode).then(setRoomState).catch(console.error);
@@ -215,14 +215,14 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handlePlayerAnswered = (data: any) => {
-      if (data?.data?.leaderboard) {
+      if (data?.leaderboard) {
         setRoomState(prev => {
           if (!prev) return prev;
           return {
             ...prev,
             game_state: {
               ...prev.game_state,
-              leaderboard: data.data.leaderboard,
+              leaderboard: data.leaderboard,
             },
           };
         });
@@ -239,10 +239,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handleChatMessage = (data: any) => {
-      if (data?.data?.user?.username && data?.data?.message) {
+      if (data?.user?.username && data?.message) {
         setChatMessages(prev => [...prev, {
-          name: data.data.user.username,
-          text: data.data.message,
+          name: data.user.username,
+          text: data.message,
         }]);
       }
     };
@@ -350,6 +350,34 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         correctOptionId: result.correct_option_id ?? null,
         pointsEarned: result.points_earned,
       });
+
+      if (result?.leaderboard?.length) {
+        setRoomState((prev) => {
+          if (!prev) return prev;
+
+          return {
+            ...prev,
+            game_state: {
+              ...prev.game_state,
+              leaderboard: result.leaderboard,
+            },
+          };
+        });
+      } else if (typeof result.total_score === "number") {
+        setRoomState((prev) => {
+          if (!prev) return prev;
+
+          return {
+            ...prev,
+            game_state: {
+              ...prev.game_state,
+              leaderboard: prev.game_state.leaderboard.map((item) =>
+                item.user_id === user?.id ? { ...item, score: result.total_score } : item
+              ),
+            },
+          };
+        });
+      }
     } catch (err) {
       setError("Không thể gửi câu trả lời. Vui lòng thử lại.");
       console.error(err);

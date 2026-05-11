@@ -80,15 +80,8 @@ def _calculate_points(is_correct: bool, response_time: float | int | None, quest
 	if not is_correct:
 		return 0
 
-	points = question_points or 0
-	if points <= 0:
-		return 0
-
-	time_taken = response_time or 0
-	if time_taken < 3:
-		return points
-
-	return max(int(points * 0.5), 1)
+	# Correct: return full question points
+	return question_points or 0
 
 
 def _build_live_score_map(room: GameRoom, db: Session) -> dict[str, int]:
@@ -447,7 +440,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
 	if room.host_id == current_user:
-		if room.status != "PLAYING":
+		if room.status == "WAITING":
 			room_state = _serialize_room_state(room, db)
 			await manager.broadcast(
 				room_code,
@@ -526,6 +519,25 @@ def get_room_players(room_code: str, db: Session) -> list:
 def _get_leaderboard(room: GameRoom, db: Session) -> list:
 	"""Helper to get live leaderboard from submitted answers (no interim score persistence)."""
 	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+	
+	# If no players in RoomPlayer, reconstruct from PlayerAnswer + User
+	if not players:
+		distinct_user_ids = db.query(PlayerAnswer.user_id).filter(
+			PlayerAnswer.room_id == room.id
+		).distinct().all()
+		
+		reconstructed_players = []
+		for (user_id,) in distinct_user_ids:
+			user = db.query(User).filter(User.id == user_id).first()
+			if user:
+				class MockPlayer:
+					pass
+				mock = MockPlayer()
+				mock.user_id = user_id
+				mock.display_name = user.username
+				reconstructed_players.append(mock)
+		players = reconstructed_players
+	
 	score_map = _build_live_score_map(room, db)
 	sorted_players = sorted(
 		players,
@@ -591,11 +603,7 @@ def _all_players_finished(room: GameRoom, db: Session) -> bool:
 		return False
 
 	for player in players:
-		answered_count = db.query(PlayerAnswer).filter(
-			PlayerAnswer.room_id == room.id,
-			PlayerAnswer.user_id == player.user_id,
-		).count()
-		if answered_count < total_questions:
+		if (player.current_question_order or 0) <= total_questions:
 			return False
 
 	return True
@@ -607,8 +615,27 @@ def _finalize_game_results(room: GameRoom, db: Session) -> list:
 		room.status = "FINISHED"
 		room.ended_at = datetime.now(timezone.utc)
 
+	# Get players from RoomPlayer, but if empty, get from PlayerAnswer
 	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
 	players_by_user_id = {str(player.user_id): player for player in players}
+	
+	# If no players in RoomPlayer, reconstruct from PlayerAnswer + User
+	if not players_by_user_id:
+		distinct_user_ids = db.query(PlayerAnswer.user_id).filter(
+			PlayerAnswer.room_id == room.id
+		).distinct().all()
+		
+		for (user_id,) in distinct_user_ids:
+			user = db.query(User).filter(User.id == user_id).first()
+			if user:
+				# Create a mock player-like object with necessary fields
+				class MockPlayer:
+					pass
+				mock = MockPlayer()
+				mock.user_id = user_id
+				mock.display_name = user.username
+				players_by_user_id[str(user_id)] = mock
+	
 	final_leaderboard = _get_leaderboard(room, db)
 	existing_results = {
 		str(result.user_id): result
@@ -633,7 +660,7 @@ def _finalize_game_results(room: GameRoom, db: Session) -> list:
 			db.add(
 				GameResult(
 					room_id=room.id,
-					user_id=player.user_id,
+					user_id=UUID(user_id),
 					final_score=score,
 					rank=rank,
 				)
@@ -641,7 +668,7 @@ def _finalize_game_results(room: GameRoom, db: Session) -> list:
 
 		_update_user_stats_compat(
 			db=db,
-			user_id=player.user_id,
+			user_id=UUID(user_id),
 			score=score,
 			is_winner=(rank == 1),
 			has_wins_column=has_wins_column,
@@ -919,6 +946,15 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 		},
 	)
 
+	total_questions = db.query(GameQuestion).filter(GameQuestion.room_id == room.id).count()
+	if current_question_order >= total_questions:
+		player.current_question_order = total_questions + 1
+		db.commit()
+		db.refresh(player)
+
+		if room.status == "PLAYING":
+			await _maybe_auto_finalize_game(room_code, room, db)
+
 	return {
 		"question_order": current_question_order,
 		"is_correct": is_correct,
@@ -964,6 +1000,10 @@ async def next_question(room_code: str, current_user: UUID, db: Session) -> dict
 	current_order = player.current_question_order
 
 	if current_order >= total_questions:
+		player.current_question_order = total_questions + 1
+		db.commit()
+		db.refresh(player)
+
 		if room.status != "FINISHED":
 			await _maybe_auto_finalize_game(room_code, room, db)
 

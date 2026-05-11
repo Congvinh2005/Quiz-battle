@@ -262,10 +262,10 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
 
     const handleChatMessage = (data: any) => {
-      if (data?.data?.user?.username && data?.data?.message) {
+      if (data?.user?.username && data?.message) {
         setChatMessages(prev => [...prev, {
-          name: data.data.user.username,
-          text: data.data.message,
+          name: data.user.username,
+          text: data.message,
         }]);
       }
     };

@@ -135,7 +135,7 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
     const handleLeaderboardUpdate = (payload: any) => {
       if (cancelled) return;
 
-      const leaderboard = payload?.data?.leaderboard;
+      const leaderboard = payload?.leaderboard;
       if (Array.isArray(leaderboard)) {
         applyLeaderboard(leaderboard);
         setError(null);
