@@ -184,6 +184,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
     setIsSaving(true);
     try {
+      const isCreatingNewQuiz = !quizId;
       const payload: QuizSavePayload = {
         title: quizTitle.trim(),
         description: `Có ${questions.length} câu hỏi`,
@@ -205,7 +206,16 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
         ? await quizService.updateQuiz(quizId, payload)
         : await quizService.createQuiz(payload);
 
+      if (isCreatingNewQuiz) {
+        alert(`Đã tạo quiz "${savedQuiz.title}" thành công!`);
+        router.push("/dashboard");
+        return;
+      }
+
       router.push(`/editor/${savedQuiz.id}`);
+    } catch (error) {
+      console.error("Failed to save quiz:", error);
+      alert("Lưu quiz thất bại. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
