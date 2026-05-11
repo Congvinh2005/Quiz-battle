@@ -38,6 +38,7 @@ Bạn sẽ thấy:
 NAME                COMMAND                  SERVICE      STATUS
 quiz_battle_db      "docker-entrypoint..."   db           Up ...
 quiz_battle_redis   "redis-server"           redis        Up ...
+quiz_battle_redisinsight "..."                redis-insight Up ...
 ```
 
 ### 3. **Test kết nối Database**
@@ -82,6 +83,10 @@ docker-compose logs -f db
 ```bash
 docker exec -it quiz_battle_db psql -U postgres -d quiz_battle
 ```
+
+### Mở Redis Insight
+
+Truy cập `http://localhost:5540` để xem và quản lý Redis bằng GUI.
 
 ### Xóa tất cả data (reset database)
 
