@@ -270,8 +270,6 @@ async def join_room(room_code: str, payload: dict, current_user: UUID, db: Sessi
 
 	if existing:
 		existing.display_name = display_name
-		if room.status == "PLAYING":
-			existing.current_question_order = 1
 		db.commit()
 		db.refresh(existing)
 		await manager.broadcast(
@@ -315,37 +313,67 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
 	if room.host_id == current_user:
-		room_state = _serialize_room_state(room, db)
+		if room.status != "PLAYING":
+			room_state = _serialize_room_state(room, db)
+			await manager.broadcast(
+				room_code,
+				{
+					"type": "ROOM_CLOSED",
+					"data": {
+						**room_state,
+						"reason": "HOST_LEFT",
+						"message": "Host đã rời phòng, phòng đã đóng.",
+					},
+				},
+			)
+			db.delete(room)
+			db.commit()
+			return None
+
 		await manager.broadcast(
 			room_code,
 			{
-				"type": "ROOM_CLOSED",
+				"type": "HOST_LEFT",
 				"data": {
-					**room_state,
-					"reason": "HOST_LEFT",
-					"message": "Host đã rời phòng, phòng đã đóng.",
+					"room_code": room_code,
+					"host_id": str(room.host_id) if room.host_id else None,
+					"message": "Host đã rời phòng nhưng phòng vẫn tiếp tục.",
 				},
 			},
 		)
-		db.delete(room)
-		db.commit()
 		return None
 
 	player = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
 	if player:
-		departed_player = _serialize_player(player)
-		db.delete(player)
-		db.commit()
-		remaining_players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+		if room.status != "PLAYING":
+			departed_player = _serialize_player(player)
+			db.delete(player)
+			db.commit()
+			remaining_players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+			await manager.broadcast(
+				room_code,
+				{
+					"type": "PLAYER_LEFT",
+					"data": {
+						"room_code": room_code,
+						"player": departed_player,
+						"players": [_serialize_player(remaining_player) for remaining_player in remaining_players],
+						"player_count": len(remaining_players),
+					},
+				},
+			)
+			return None
+
 		await manager.broadcast(
 			room_code,
 			{
 				"type": "PLAYER_LEFT",
 				"data": {
 					"room_code": room_code,
-					"player": departed_player,
-					"players": [_serialize_player(remaining_player) for remaining_player in remaining_players],
-					"player_count": len(remaining_players),
+					"player": _serialize_player(player),
+					"players": [_serialize_player(remaining_player) for remaining_player in db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()],
+					"player_count": db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).count(),
+					"message": "Người chơi đã rời tạm thời, có thể vào lại bằng mã phòng.",
 				},
 			},
 		)
@@ -552,7 +580,7 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not in this room")
 
 	# Get current question
-	current_question_order = room.current_question_order
+	current_question_order = player.current_question_order or 1
 	game_question = db.query(GameQuestion).filter(
 		GameQuestion.room_id == room.id,
 		GameQuestion.question_order == current_question_order
@@ -574,6 +602,14 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 	selected_option = db.query(AnswerOption).filter(AnswerOption.id == selected_option_id).first()
 	if not selected_option:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid option")
+
+	if selected_option.question_id != game_question.question_id:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected option does not belong to current question")
+
+	correct_option = db.query(AnswerOption).filter(
+		AnswerOption.question_id == game_question.question_id,
+		AnswerOption.is_correct == True
+	).first()
 
 	question = game_question.question
 	is_correct = selected_option.is_correct
@@ -613,6 +649,7 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 				"user_id": str(current_user),
 				"question_order": current_question_order,
 				"is_correct": is_correct,
+				"correct_option_id": str(correct_option.id) if correct_option else None,
 				"points_earned": points,
 				"leaderboard": _get_leaderboard(room, db),
 			},
@@ -622,6 +659,7 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 	return {
 		"question_order": current_question_order,
 		"is_correct": is_correct,
+		"correct_option_id": str(correct_option.id) if correct_option else None,
 		"points_earned": points,
 		"total_score": player.score,
 		"leaderboard": _get_leaderboard(room, db),

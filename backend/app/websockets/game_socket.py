@@ -57,6 +57,10 @@ async def _close_room_if_host_not_reconnected(room_code: str, host_user_id: UUID
             if not room:
                 return
 
+                # Keep active games alive even if the host is offline.
+                if room.status == "PLAYING":
+                    return
+
             if room.host_id != host_user_id:
                 return
 
@@ -113,6 +117,10 @@ async def game_socket(websocket: WebSocket, room_code: str, db: Session = Depend
         manager.disconnect(room_code, str(current_user_id), websocket)
         room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
         if not room:
+            return
+
+		# Active games should continue even if the host disconnects.
+        if room.status == "PLAYING":
             return
 
         if room.host_id == current_user_id:

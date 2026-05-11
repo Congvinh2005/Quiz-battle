@@ -30,6 +30,27 @@ interface LeaderboardItem {
   score: string;
   gradient: string;
   isMe?: boolean;
+  userId?: string;
+}
+
+interface SubmitAnswerResponse {
+  question_order: number;
+  is_correct: boolean;
+  correct_option_id?: string | null;
+  points_earned: number;
+  total_score: number;
+  leaderboard: Array<{
+    rank: number;
+    user_id: string;
+    display_name: string;
+    score: number;
+  }>;
+}
+
+interface AnswerFeedback {
+  isCorrect: boolean;
+  correctOptionId: string | null;
+  pointsEarned: number;
 }
 
 function getInitials(name: string) {
@@ -57,6 +78,7 @@ function serializeLeaderboard(state: RoomStateResponse | null): LeaderboardItem[
     score: item.score.toLocaleString("vi-VN"),
     gradient: gradients[index % gradients.length],
     isMe: false,
+    userId: item.user_id,
   }));
 }
 
@@ -76,6 +98,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(30);
   const [timerActive, setTimerActive] = useState<boolean>(true);
+  const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
   const questionStartTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceTriggeredRef = useRef(false);
@@ -106,6 +129,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         questionStartTimeRef.current = Date.now();
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
+        setAnswerFeedback(null);
         autoAdvanceTriggeredRef.current = false;
         // Initialize timer from question's time_limit
         const timeLimit = state?.game_state?.current_question?.time_limit || 30;
@@ -123,7 +147,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
   // Countdown timer effect - auto-advance to next question when time reaches 0
   useEffect(() => {
-    if (!timerActive || isAnswerSubmitted || !roomCode) {
+    if (!timerActive || !roomCode) {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
@@ -144,7 +168,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
             timerIntervalRef.current = null;
           }
           // Call next question automatically
-          if (!isNextQuestionLoading && !isAnswerSubmitted && roomCode) {
+          if (!isNextQuestionLoading && roomCode) {
             void handleNextQuestion();
           }
         }
@@ -159,7 +183,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         timerIntervalRef.current = null;
       }
     };
-  }, [timerActive, isAnswerSubmitted, roomCode, isNextQuestionLoading]);
+  }, [timerActive, roomCode, isNextQuestionLoading]);
 
   // WebSocket listeners for real-time updates
   useEffect(() => {
@@ -173,6 +197,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         // New question, reset state
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
+        setAnswerFeedback(null);
         setTimerActive(true);
         autoAdvanceTriggeredRef.current = false;
         questionStartTimeRef.current = Date.now();
@@ -252,12 +277,16 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   }, [currentQuestion]);
 
   const leaderboard: LeaderboardItem[] = useMemo(() => serializeLeaderboard(roomState), [roomState]);
+  const myLeaderboardItem = useMemo(
+    () => leaderboard.find((item) => item.userId === user?.id),
+    [leaderboard, user?.id],
+  );
 
   const questionOrder = roomState?.game_state.current_question_order ?? roomState?.settings.current_question_order ?? 1;
   const totalQuestions = roomState?.game_state.total_questions ?? roomState?.quiz.question_count ?? 0;
   const roomStatus = roomState?.game_state.status ?? roomState?.room.status ?? "WAITING";
-  const myScore = leaderboard[0]?.score ?? "0";
-  const myRank = leaderboard[0]?.rank ?? "-";
+  const myScore = myLeaderboardItem?.score ?? "0";
+  const myRank = myLeaderboardItem?.rank ?? "-";
   const isHost = user?.id === roomState?.room?.host_id;
 
   const handleSubmitAnswer = async (selectedOptionId: string) => {
@@ -265,18 +294,21 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
     try {
       setIsSubmittingAnswer(true);
-      setTimerActive(false); // Stop timer when answer is submitted
       const responseTime = (Date.now() - questionStartTimeRef.current) / 1000;
 
-      await gameService.submitAnswer(roomCode, {
+      const result = (await gameService.submitAnswer(roomCode, {
         selected_option_id: selectedOptionId,
         response_time: responseTime,
-      });
+      })) as SubmitAnswerResponse;
 
       setIsAnswerSubmitted(true);
+      setAnswerFeedback({
+        isCorrect: result.is_correct,
+        correctOptionId: result.correct_option_id ?? null,
+        pointsEarned: result.points_earned,
+      });
     } catch (err) {
       setError("Không thể gửi câu trả lời. Vui lòng thử lại.");
-      setTimerActive(true); // Resume timer on error
       console.error(err);
     } finally {
       setIsSubmittingAnswer(false);
@@ -316,6 +348,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         // Reset for next question
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
+        setAnswerFeedback(null);
         autoAdvanceTriggeredRef.current = false;
         questionStartTimeRef.current = Date.now();
         const nextTimeLimit = result?.question?.time_limit || 30;
@@ -460,9 +493,13 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           <div className="answers-grid">
             {answers.map((answer) => (
               <button
-                className={`answer-btn${selectedAnswer === answer.id ? " selected" : ""}${
-                  isAnswerSubmitted ? " submitted" : ""
-                }`}
+                className={`answer-btn${
+                  !isAnswerSubmitted && selectedAnswer === answer.id ? " selected" : ""
+                }${
+                  isAnswerSubmitted && answerFeedback?.correctOptionId === answer.id ? " correct" : ""
+                }${
+                  isAnswerSubmitted && selectedAnswer === answer.id && !answerFeedback?.isCorrect ? " wrong" : ""
+                }${isAnswerSubmitted ? " submitted" : ""}`}
                 key={answer.id}
                 onClick={() => handleSelectAnswer(answer.id)}
                 disabled={isLoading || isAnswerSubmitted || isSubmittingAnswer || roomStatus !== "PLAYING"}
@@ -473,6 +510,14 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
             ))}
             {!answers.length && !isLoading && <div className="question-num">Chưa có đáp án nào cho câu hỏi này.</div>}
           </div>
+
+          {isAnswerSubmitted && answerFeedback && (
+            <div className="question-num" style={{ marginTop: 14, textAlign: "center" }}>
+              {answerFeedback.isCorrect
+                ? `Chính xác! +${answerFeedback.pointsEarned} điểm`
+                : `Sai rồi. Đáp án đúng đã được tô xanh.`}
+            </div>
+          )}
 
           {/* Submit Button */}
           <div style={{ marginTop: "20px", display: "flex", gap: "10px", justifyContent: "center" }}>
@@ -500,16 +545,16 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
             {/* Next Question Button - each player can advance independently */}
             <button
               onClick={handleNextQuestion}
-              disabled={isNextQuestionLoading || questionOrder >= totalQuestions || !isAnswerSubmitted}
+              disabled={isNextQuestionLoading || !isAnswerSubmitted || roomStatus !== "PLAYING"}
               style={{
                 padding: "12px 32px",
                 fontSize: "16px",
                 fontWeight: "bold",
-                backgroundColor: questionOrder >= totalQuestions || !isAnswerSubmitted ? "#ccc" : "#2196F3",
+                backgroundColor: !isAnswerSubmitted || roomStatus !== "PLAYING" ? "#ccc" : "#2196F3",
                 color: "white",
                 border: "none",
                 borderRadius: "8px",
-                cursor: questionOrder >= totalQuestions || !isAnswerSubmitted ? "not-allowed" : "pointer",
+                cursor: !isAnswerSubmitted || roomStatus !== "PLAYING" ? "not-allowed" : "pointer",
               }}
             >
               {isNextQuestionLoading ? "Đang chuyển..." : "Câu Tiếp →"}
