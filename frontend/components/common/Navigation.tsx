@@ -15,7 +15,11 @@ export default function Navigation() {
     router.push("/");
   };
 
-  const isAuthPage = pathname === "/" || pathname === "/register";
+  const isLandingPage = pathname === "/" || pathname === "/login" || pathname === "/register";
+
+  if (isLandingPage) {
+    return null;
+  }
 
   const navItems = [
     { href: "/dashboard", label: "🏠 Dashboard", active: pathname === "/dashboard" },
@@ -32,31 +36,29 @@ export default function Navigation() {
         Quiz<span>Battle</span>
       </Link>
 
-      {!isAuthPage && (
-        <div className="nav-tabs">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <button className={`nav-tab${item.active ? " active" : ""}`}>{item.label}</button>
-            </Link>
-          ))}
-          {isAuthenticated && (
-            <button
-              className="nav-tab"
-              style={{ color: "var(--accent)", marginLeft: "auto" }}
-              onClick={handleLogout}
-            >
+      <div className="nav-tabs">
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href}>
+            <button className={`nav-tab${item.active ? " active" : ""}`}>{item.label}</button>
+          </Link>
+        ))}
+        {isAuthenticated && (
+          <button
+            className="nav-tab"
+            style={{ color: "var(--accent)", marginLeft: "auto" }}
+            onClick={handleLogout}
+          >
+            🚪 Đăng xuất
+          </button>
+        )}
+        {!isAuthenticated && (
+          <Link href="/login">
+            <button className="nav-tab" style={{ color: "var(--accent)", marginLeft: "auto" }}>
               🚪 Đăng xuất
             </button>
-          )}
-          {!isAuthenticated && (
-            <Link href="/">
-              <button className="nav-tab" style={{ color: "var(--accent)", marginLeft: "auto" }}>
-                🚪 Đăng xuất
-              </button>
-            </Link>
-          )}
-        </div>
-      )}
+          </Link>
+        )}
+      </div>
     </nav>
   );
 }

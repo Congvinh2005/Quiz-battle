@@ -75,6 +75,10 @@ export default function RegisterScreen() {
 
   return (
     <div className="register-wrap">
+      <Link className="register-back-btn" href="/">
+        <span aria-hidden="true">←</span>
+        Quay lại trang giới thiệu
+      </Link>
       <div className="register-bg" />
       <div className="register-card">
         <div className="step-dots">
@@ -164,7 +168,7 @@ export default function RegisterScreen() {
         </form>
 
         <p className="register-footer">
-          Đã có tài khoản? <Link href="/" className="link">Đăng nhập</Link>
+          Đã có tài khoản? <Link href="/login" className="link">Đăng nhập</Link>
         </p>
       </div>
     </div>
