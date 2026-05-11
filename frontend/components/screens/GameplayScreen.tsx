@@ -74,7 +74,11 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number>(30);
+  const [timerActive, setTimerActive] = useState<boolean>(true);
   const questionStartTimeRef = useRef<number>(0);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const autoAdvanceTriggeredRef = useRef(false);
 
   // Load initial state and chat messages
   useEffect(() => {
@@ -102,6 +106,11 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         questionStartTimeRef.current = Date.now();
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
+        autoAdvanceTriggeredRef.current = false;
+        // Initialize timer from question's time_limit
+        const timeLimit = state?.game_state?.current_question?.time_limit || 30;
+        setTimeRemaining(timeLimit);
+        setTimerActive(true);
       } catch (loadError) {
         setError("Không tải được trạng thái phòng. Vui lòng quay lại lobby hoặc thử refresh.");
       } finally {
@@ -111,6 +120,46 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
     loadState();
   }, [roomCode]);
+
+  // Countdown timer effect - auto-advance to next question when time reaches 0
+  useEffect(() => {
+    if (!timerActive || isAnswerSubmitted || !roomCode) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
+
+    timerIntervalRef.current = setInterval(() => {
+      setTimeRemaining((prevTime) => {
+        const newTime = Math.max(0, prevTime - 1);
+        
+        // When timer reaches 0, auto-advance to next question
+        if (newTime === 0 && !autoAdvanceTriggeredRef.current) {
+          autoAdvanceTriggeredRef.current = true;
+          setTimerActive(false);
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          // Call next question automatically
+          if (!isNextQuestionLoading && !isAnswerSubmitted && roomCode) {
+            void handleNextQuestion();
+          }
+        }
+        
+        return newTime;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [timerActive, isAnswerSubmitted, roomCode, isNextQuestionLoading]);
 
   // WebSocket listeners for real-time updates
   useEffect(() => {
@@ -124,7 +173,12 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         // New question, reset state
         setSelectedAnswer(null);
         setIsAnswerSubmitted(false);
+        setTimerActive(true);
+        autoAdvanceTriggeredRef.current = false;
         questionStartTimeRef.current = Date.now();
+        // Reset timer to new question's time_limit
+        const newTimeLimit = data?.data?.question?.time_limit || 30;
+        setTimeRemaining(newTimeLimit);
         // Reload room state to get new question
         gameService.getRoomState(roomCode).then(setRoomState).catch(console.error);
       }
@@ -146,6 +200,8 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handleGameEnded = (data: any) => {
+      // Stop timer when game ends
+      setTimerActive(false);
       // Redirect to results page
       setTimeout(() => {
         router.push(`/results/${roomCode}`);
@@ -176,6 +232,11 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       wsService.off("GAME_ENDED", handleGameEnded);
       wsService.off("CHAT_MESSAGE", handleChatMessage);
       wsService.disconnect();
+      // Clean up timer interval
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
     };
   }, [roomCode, router]);
 
@@ -195,7 +256,6 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const questionOrder = roomState?.game_state.current_question_order ?? roomState?.settings.current_question_order ?? 1;
   const totalQuestions = roomState?.game_state.total_questions ?? roomState?.quiz.question_count ?? 0;
   const roomStatus = roomState?.game_state.status ?? roomState?.room.status ?? "WAITING";
-  const timeRemaining = currentQuestion?.time_limit ?? 30;
   const myScore = leaderboard[0]?.score ?? "0";
   const myRank = leaderboard[0]?.rank ?? "-";
   const isHost = user?.id === roomState?.room?.host_id;
@@ -205,6 +265,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
     try {
       setIsSubmittingAnswer(true);
+      setTimerActive(false); // Stop timer when answer is submitted
       const responseTime = (Date.now() - questionStartTimeRef.current) / 1000;
 
       await gameService.submitAnswer(roomCode, {
@@ -215,6 +276,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       setIsAnswerSubmitted(true);
     } catch (err) {
       setError("Không thể gửi câu trả lời. Vui lòng thử lại.");
+      setTimerActive(true); // Resume timer on error
       console.error(err);
     } finally {
       setIsSubmittingAnswer(false);
@@ -226,14 +288,43 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
     try {
       setIsNextQuestionLoading(true);
+      setTimerActive(false); // Stop timer while advancing
       const result = await gameService.nextQuestion(roomCode);
 
       if (result?.status === "FINISHED") {
         // Player finished all questions
+        autoAdvanceTriggeredRef.current = false;
+        setTimerActive(false);
         router.push(`/results/${roomCode}`);
+      } else {
+        if (result?.question) {
+          setRoomState((prev) => {
+            if (!prev) return prev;
+
+            return {
+              ...prev,
+              game_state: {
+                ...prev.game_state,
+                current_question_order: result.current_question_order ?? prev.game_state.current_question_order,
+                current_question: result.question,
+                total_questions: result.total_questions ?? prev.game_state.total_questions,
+              },
+            };
+          });
+        }
+
+        // Reset for next question
+        setSelectedAnswer(null);
+        setIsAnswerSubmitted(false);
+        autoAdvanceTriggeredRef.current = false;
+        questionStartTimeRef.current = Date.now();
+        const nextTimeLimit = result?.question?.time_limit || 30;
+        setTimeRemaining(nextTimeLimit);
+        setTimerActive(true); // Restart timer for next question
       }
     } catch (err) {
       setError("Không thể chuyển câu hỏi. Vui lòng thử lại.");
+      setTimerActive(true); // Resume timer on error
       console.error(err);
     } finally {
       setIsNextQuestionLoading(false);
@@ -246,6 +337,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     try {
       setIsLeavingRoom(true);
       setError(null);
+      setTimerActive(false); // Stop timer when leaving
       await gameService.leaveRoom(roomCode);
       wsService.disconnect();
       router.push("/dashboard");
@@ -292,7 +384,15 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           <div className="timer-circle">
             <svg className="timer-svg" width="52" height="52" viewBox="0 0 52 52">
               <circle className="timer-track" cx="26" cy="26" r="20" />
-              <circle className="timer-fill" cx="26" cy="26" r="20" style={{ strokeDashoffset: 125.6 * (1 - timeRemaining / 30) }} />
+              <circle 
+                className="timer-fill" 
+                cx="26" 
+                cy="26" 
+                r="20" 
+                style={{ 
+                  strokeDashoffset: 125.6 * (1 - timeRemaining / (currentQuestion?.time_limit || 30))
+                }} 
+              />
             </svg>
             <div className="timer-num">{timeRemaining}</div>
           </div>
