@@ -30,6 +30,10 @@ export default function LoginScreen() {
 
   return (
     <div className="login-wrap">
+      <Link className="login-back-btn" href="/">
+        <span aria-hidden="true">←</span>
+        Quay lại trang giới thiệu
+      </Link>
       <div className="login-left">
         <div className="brand-badge"><span className="dot" /> Quiz đấu thời gian thực</div>
         <h1 className="login-title">Chào mừng<br />trở lại <span>QuizBattle</span></h1>
