@@ -240,7 +240,26 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
           </div>
         ))}
       </section>
-
+      <div className="full-leaderboard">
+        <div className="lb-header">
+          <span className="lb-title">📊 Bảng xếp hạng đầy đủ</span>
+          <span className="lb-total">{rows.length} người chơi</span>
+        </div>
+        {rows.map((row) => (
+          <div key={row.id} className={`lb-row${row.isMe ? " me" : ""}`}>
+            <div className={`lb-rank-num${row.rankClass ? ` ${row.rankClass}` : ""}`}>
+              {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
+            </div>
+            <div className="lb-av" style={{ background: row.gradient }}>
+              {row.initials}
+            </div>
+            <div className="lb-name">
+              {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
+            </div>
+            <div className="lb-score-val">{formatScore(row.score)}</div>
+          </div>
+        ))}
+      </div>
       <div className="result-actions">
         <button className="btn-play-again" onClick={() => router.push(`/room/${roomCode}`)}>
           🔄 Chơi lại
