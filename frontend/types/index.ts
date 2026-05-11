@@ -146,6 +146,7 @@ export interface GameResult {
   id: string;
   room_id: string;
   user_id: string;
+  display_name?: string;
   final_score: number;
   rank: number;
   created_at: string;

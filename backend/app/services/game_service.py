@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.models.game.chat_messages import ChatMessage
@@ -14,7 +15,6 @@ from app.models.quiz.quizzes import Quiz
 from app.models.quiz.questions import Question
 from app.models.quiz.answer_options import AnswerOption
 from app.models.user_auth.users import User
-from app.models.user_stat.user_stats import UserStats
 from app.websockets.game_socket import manager
 
 
@@ -76,6 +76,149 @@ def _serialize_question(question: Question) -> dict:
 	}
 
 
+def _calculate_points(is_correct: bool, response_time: float | int | None, question_points: int | None) -> int:
+	if not is_correct:
+		return 0
+
+	points = question_points or 0
+	if points <= 0:
+		return 0
+
+	time_taken = response_time or 0
+	if time_taken < 3:
+		return points
+
+	return max(int(points * 0.5), 1)
+
+
+def _build_live_score_map(room: GameRoom, db: Session) -> dict[str, int]:
+	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+	score_map = {str(player.user_id): 0 for player in players}
+
+	answers = (
+		db.query(PlayerAnswer, Question)
+		.join(Question, Question.id == PlayerAnswer.question_id)
+		.filter(PlayerAnswer.room_id == room.id)
+		.all()
+	)
+
+	for answer, question in answers:
+		user_id = str(answer.user_id)
+		score_map[user_id] = score_map.get(user_id, 0) + _calculate_points(
+			answer.is_correct,
+			answer.response_time,
+			question.points,
+		)
+
+	return score_map
+
+
+def _update_user_stats_compat(db: Session, user_id: UUID, score: int, is_winner: bool, has_wins_column: bool) -> None:
+	"""Update user_stats without assuming the DB always has the wins column."""
+	if has_wins_column:
+		row = db.execute(
+			text(
+				"""
+				SELECT total_games, total_score, wins
+				FROM user_stats
+				WHERE user_id = CAST(:user_id AS uuid)
+				"""
+			),
+			{"user_id": str(user_id)},
+		).mappings().first()
+	else:
+		row = db.execute(
+			text(
+				"""
+				SELECT total_games, total_score
+				FROM user_stats
+				WHERE user_id = CAST(:user_id AS uuid)
+				"""
+			),
+			{"user_id": str(user_id)},
+		).mappings().first()
+
+	if row:
+		total_games = int(row["total_games"] or 0) + 1
+		total_score = int(row["total_score"] or 0) + score
+		avg_score = total_score / total_games if total_games else 0.0
+
+		if has_wins_column:
+			wins = int(row["wins"] or 0) + (1 if is_winner else 0)
+			db.execute(
+				text(
+					"""
+					UPDATE user_stats
+					SET total_games = :total_games,
+						total_score = :total_score,
+						avg_score = :avg_score,
+						wins = :wins,
+						updated_at = NOW()
+					WHERE user_id = CAST(:user_id AS uuid)
+					"""
+				),
+				{
+					"user_id": str(user_id),
+					"total_games": total_games,
+					"total_score": total_score,
+					"avg_score": avg_score,
+					"wins": wins,
+				},
+			)
+		else:
+			db.execute(
+				text(
+					"""
+					UPDATE user_stats
+					SET total_games = :total_games,
+						total_score = :total_score,
+						avg_score = :avg_score,
+						updated_at = NOW()
+					WHERE user_id = CAST(:user_id AS uuid)
+					"""
+				),
+				{
+					"user_id": str(user_id),
+					"total_games": total_games,
+					"total_score": total_score,
+					"avg_score": avg_score,
+				},
+			)
+		return
+
+	if has_wins_column:
+		db.execute(
+			text(
+				"""
+				INSERT INTO user_stats (user_id, total_games, total_score, avg_score, wins, created_at, updated_at)
+				VALUES (CAST(:user_id AS uuid), :total_games, :total_score, :avg_score, :wins, NOW(), NOW())
+				"""
+			),
+			{
+				"user_id": str(user_id),
+				"total_games": 1,
+				"total_score": score,
+				"avg_score": float(score),
+				"wins": 1 if is_winner else 0,
+			},
+		)
+	else:
+		db.execute(
+			text(
+				"""
+				INSERT INTO user_stats (user_id, total_games, total_score, avg_score, created_at, updated_at)
+				VALUES (CAST(:user_id AS uuid), :total_games, :total_score, :avg_score, NOW(), NOW())
+				"""
+			),
+			{
+				"user_id": str(user_id),
+				"total_games": 1,
+				"total_score": score,
+				"avg_score": float(score),
+			},
+		)
+
+
 def _serialize_room_state(room: GameRoom, db: Session) -> dict:
 	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
 	return {
@@ -122,16 +265,7 @@ def get_room_state(room_code: str, db: Session, current_user: UUID = None) -> di
 	elif room.status == "WAITING" and quiz_questions:
 		current_question = _serialize_question(quiz_questions[0])
 
-	# Leaderboard: only show score, no rank calculation
-	leaderboard = [
-		{
-			"rank": index + 1,
-			"user_id": player.user_id,
-			"display_name": player.display_name,
-			"score": player.score,
-		}
-		for index, player in enumerate(sorted(players, key=lambda player: player.score, reverse=True))
-	]
+	leaderboard = _get_leaderboard(room, db)
 
 	return {
 		"room": _serialize_room(room),
@@ -390,18 +524,154 @@ def get_room_players(room_code: str, db: Session) -> list:
 
 
 def _get_leaderboard(room: GameRoom, db: Session) -> list:
-	"""Helper to get leaderboard sorted by score descending"""
+	"""Helper to get live leaderboard from submitted answers (no interim score persistence)."""
 	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
-	sorted_players = sorted(players, key=lambda p: p.score, reverse=True)
+	score_map = _build_live_score_map(room, db)
+	sorted_players = sorted(
+		players,
+		key=lambda player: (
+			-score_map.get(str(player.user_id), 0),
+			(player.display_name or "").lower(),
+			str(player.user_id),
+		),
+	)
 	return [
 		{
 			"rank": idx + 1,
 			"user_id": str(player.user_id),
 			"display_name": player.display_name,
-			"score": player.score,
+			"score": score_map.get(str(player.user_id), 0),
 		}
 		for idx, player in enumerate(sorted_players)
 	]
+
+
+def _get_room_results_rows(room: GameRoom, db: Session) -> list:
+	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+	players_by_user_id = {str(player.user_id): player for player in players}
+	game_results = db.query(GameResult).filter(GameResult.room_id == room.id).all()
+
+	if room.status == "FINISHED" and game_results:
+		sorted_results = sorted(game_results, key=lambda result: result.rank or 0)
+		return [
+			{
+				"id": str(result.id),
+				"room_id": str(result.room_id),
+				"user_id": str(result.user_id),
+				"display_name": players_by_user_id.get(str(result.user_id)).display_name if players_by_user_id.get(str(result.user_id)) else None,
+				"final_score": result.final_score,
+				"rank": result.rank,
+				"created_at": result.created_at,
+			}
+			for result in sorted_results
+		]
+
+	live_leaderboard = _get_leaderboard(room, db)
+	return [
+		{
+			"id": None,
+			"room_id": str(room.id),
+			"user_id": item["user_id"],
+			"display_name": item["display_name"],
+			"final_score": item["score"],
+			"rank": item["rank"],
+			"created_at": None,
+		}
+		for item in live_leaderboard
+	]
+
+
+def _all_players_finished(room: GameRoom, db: Session) -> bool:
+	total_questions = db.query(GameQuestion).filter(GameQuestion.room_id == room.id).count()
+	if total_questions == 0:
+		return False
+
+	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+	if not players:
+		return False
+
+	for player in players:
+		answered_count = db.query(PlayerAnswer).filter(
+			PlayerAnswer.room_id == room.id,
+			PlayerAnswer.user_id == player.user_id,
+		).count()
+		if answered_count < total_questions:
+			return False
+
+	return True
+
+
+def _finalize_game_results(room: GameRoom, db: Session) -> list:
+	"""Persist final results and user stats exactly once per room."""
+	if room.status != "FINISHED":
+		room.status = "FINISHED"
+		room.ended_at = datetime.now(timezone.utc)
+
+	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+	players_by_user_id = {str(player.user_id): player for player in players}
+	final_leaderboard = _get_leaderboard(room, db)
+	existing_results = {
+		str(result.user_id): result
+		for result in db.query(GameResult).filter(GameResult.room_id == room.id).all()
+	}
+	columns = {column["name"] for column in inspect(db.bind).get_columns("user_stats")}
+	has_wins_column = "wins" in columns
+
+	for item in final_leaderboard:
+		user_id = item["user_id"]
+		rank = item["rank"]
+		score = item["score"]
+		player = players_by_user_id.get(user_id)
+		if not player:
+			continue
+
+		result = existing_results.get(user_id)
+		if result:
+			result.final_score = score
+			result.rank = rank
+		else:
+			db.add(
+				GameResult(
+					room_id=room.id,
+					user_id=player.user_id,
+					final_score=score,
+					rank=rank,
+				)
+			)
+
+		_update_user_stats_compat(
+			db=db,
+			user_id=player.user_id,
+			score=score,
+			is_winner=(rank == 1),
+			has_wins_column=has_wins_column,
+		)
+
+	db.commit()
+	db.refresh(room)
+	return _get_room_results_rows(room, db)
+
+
+async def _maybe_auto_finalize_game(room_code: str, room: GameRoom, db: Session) -> list | None:
+	if room.status == "FINISHED":
+		return None
+
+	if not _all_players_finished(room, db):
+		return None
+
+	final_rows = _finalize_game_results(room, db)
+	await manager.broadcast(
+		room_code,
+		{
+			"type": "GAME_ENDED",
+			"data": {
+				"room_code": room_code,
+				"final_leaderboard": _get_leaderboard(room, db),
+				"ended_at": room.ended_at.isoformat() if room.ended_at else None,
+			},
+		},
+	)
+	return final_rows
 
 
 async def start_game(room_code: str, current_user: UUID, db: Session) -> dict:
@@ -486,18 +756,7 @@ def get_room_results(room_code: str, db: Session) -> list:
 	if not room:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
-	results = []
-	for player in db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all():
-		results.append(
-			{
-				"room_id": str(room.id),
-				"user_id": str(player.user_id),
-				"display_name": player.display_name,
-				"final_score": player.score,
-				"rank": None,
-			}
-		)
-	return results
+	return _get_room_results_rows(room, db)
 
 
 def get_room_chat(room_code: str, db: Session, limit: int = 50, offset: int = 0) -> list:
@@ -635,10 +894,14 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 	)
 	db.add(answer)
 
-	# Update player score
-	player.score += points
 	db.commit()
-	db.refresh(player)
+
+	leaderboard = _get_leaderboard(room, db)
+	current_total_score = 0
+	for item in leaderboard:
+		if item["user_id"] == str(current_user):
+			current_total_score = item["score"]
+			break
 
 	# Broadcast PLAYER_ANSWERED with updated leaderboard
 	await manager.broadcast(
@@ -651,7 +914,7 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 				"is_correct": is_correct,
 				"correct_option_id": str(correct_option.id) if correct_option else None,
 				"points_earned": points,
-				"leaderboard": _get_leaderboard(room, db),
+				"leaderboard": leaderboard,
 			},
 		},
 	)
@@ -661,8 +924,8 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 		"is_correct": is_correct,
 		"correct_option_id": str(correct_option.id) if correct_option else None,
 		"points_earned": points,
-		"total_score": player.score,
-		"leaderboard": _get_leaderboard(room, db),
+		"total_score": current_total_score,
+		"leaderboard": leaderboard,
 	}
 
 
@@ -671,6 +934,18 @@ async def next_question(room_code: str, current_user: UUID, db: Session) -> dict
 	room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
 	if not room:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+
+	if room.status == "FINISHED":
+		player = db.query(RoomPlayer).filter(
+			RoomPlayer.room_id == room.id,
+			RoomPlayer.user_id == current_user
+		).first()
+		total_questions = db.query(GameQuestion).filter(GameQuestion.room_id == room.id).count()
+		return {
+			"status": "FINISHED",
+			"current_question_order": player.current_question_order if player else total_questions,
+			"total_questions": total_questions,
+		}
 
 	if room.status != "PLAYING":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Game is not playing")
@@ -689,6 +964,9 @@ async def next_question(room_code: str, current_user: UUID, db: Session) -> dict
 	current_order = player.current_question_order
 
 	if current_order >= total_questions:
+		if room.status != "FINISHED":
+			await _maybe_auto_finalize_game(room_code, room, db)
+
 		# Player finished all questions
 		return {
 			"status": "FINISHED",
@@ -725,57 +1003,25 @@ async def finish_game(room_code: str, current_user: UUID, db: Session) -> dict:
 	if room.host_id != current_user:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only host can finish game")
 
-	room.status = "FINISHED"
-	room.ended_at = datetime.now(timezone.utc)
-
-	# Get leaderboard
-	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
-	sorted_players = sorted(players, key=lambda p: p.score, reverse=True)
-
-	# Create game results and update user stats
-	for rank, player in enumerate(sorted_players, start=1):
-		game_result = GameResult(
-			room_id=room.id,
-			user_id=player.user_id,
-			final_score=player.score,
-			rank=rank
-		)
-		db.add(game_result)
-
-		# Update user stats
-		user_stat = db.query(UserStats).filter(UserStats.user_id == player.user_id).first()
-		if not user_stat:
-			user_stat = UserStats(
-				user_id=player.user_id,
-				total_games=0,
-				total_score=0,
-				wins=0
-			)
-			db.add(user_stat)
-
-		user_stat.total_games += 1
-		user_stat.total_score += player.score
-		if rank == 1:
-			user_stat.wins += 1
-
-	db.commit()
-
-	# Broadcast GAME_ENDED with results
-	await manager.broadcast(
-		room_code,
-		{
-			"type": "GAME_ENDED",
-			"data": {
-				"room_code": room_code,
-				"final_leaderboard": _get_leaderboard(room, db),
-				"ended_at": room.ended_at.isoformat(),
+	results_exist = db.query(GameResult).filter(GameResult.room_id == room.id).first() is not None
+	if room.status != "FINISHED" or not results_exist:
+		_finalize_game_results(room, db)
+		await manager.broadcast(
+			room_code,
+			{
+				"type": "GAME_ENDED",
+				"data": {
+					"room_code": room_code,
+					"final_leaderboard": _get_leaderboard(room, db),
+					"ended_at": room.ended_at.isoformat() if room.ended_at else None,
+				},
 			},
-		},
-	)
+		)
 
 	return {
 		"status": "FINISHED",
 		"final_leaderboard": _get_leaderboard(room, db),
+		"results": _get_room_results_rows(room, db),
 	}
 
 

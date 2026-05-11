@@ -23,6 +23,7 @@ interface ChatLine {
 }
 
 interface LeaderboardItem {
+  numericRank: number;
   rank: string;
   rankClass?: string;
   initials: string;
@@ -71,6 +72,7 @@ function serializeLeaderboard(state: RoomStateResponse | null): LeaderboardItem[
   ];
 
   return state.game_state.leaderboard.map((item, index) => ({
+    numericRank: item.rank,
     rank: item.rank <= 3 ? ["🥇", "🥈", "🥉"][item.rank - 1] : String(item.rank),
     rankClass: item.rank === 1 ? "gold" : item.rank === 2 ? "silver" : item.rank === 3 ? "bronze" : undefined,
     initials: getInitials(item.display_name),
@@ -102,6 +104,9 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const questionStartTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceTriggeredRef = useRef(false);
+  const previousRanksRef = useRef<Map<string, number>>(new Map());
+  const rankFlashTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [rankFlashingUserIds, setRankFlashingUserIds] = useState<string[]>([]);
 
   // Load initial state and chat messages
   useEffect(() => {
@@ -257,6 +262,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       wsService.off("GAME_ENDED", handleGameEnded);
       wsService.off("CHAT_MESSAGE", handleChatMessage);
       wsService.disconnect();
+      if (rankFlashTimerRef.current) {
+        clearTimeout(rankFlashTimerRef.current);
+        rankFlashTimerRef.current = null;
+      }
       // Clean up timer interval
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
@@ -276,7 +285,41 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     }));
   }, [currentQuestion]);
 
-  const leaderboard: LeaderboardItem[] = useMemo(() => serializeLeaderboard(roomState), [roomState]);
+  const leaderboard: LeaderboardItem[] = useMemo(() => {
+    return serializeLeaderboard(roomState).map((item) => ({
+      ...item,
+      isMe: item.userId === user?.id,
+    }));
+  }, [roomState, user?.id]);
+
+  useEffect(() => {
+    if (!leaderboard.length) return;
+
+    const changedUserIds: string[] = [];
+    leaderboard.forEach((item) => {
+      const previousRank = previousRanksRef.current.get(item.userId || "");
+      if (previousRank !== undefined && previousRank !== item.numericRank && item.userId) {
+        changedUserIds.push(item.userId);
+      }
+    });
+
+    previousRanksRef.current = new Map(
+      leaderboard
+        .filter((item) => item.userId)
+        .map((item) => [item.userId as string, item.numericRank])
+    );
+
+    if (!changedUserIds.length) return;
+
+    setRankFlashingUserIds(changedUserIds);
+    if (rankFlashTimerRef.current) {
+      clearTimeout(rankFlashTimerRef.current);
+    }
+    rankFlashTimerRef.current = setTimeout(() => {
+      setRankFlashingUserIds([]);
+      rankFlashTimerRef.current = null;
+    }, 700);
+  }, [leaderboard]);
   const myLeaderboardItem = useMemo(
     () => leaderboard.find((item) => item.userId === user?.id),
     [leaderboard, user?.id],
@@ -565,7 +608,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         <aside className="mini-board vertical">
           <div className="mini-board-title">Leaderboard</div>
           {leaderboard.map((item) => (
-            <div className={`mini-board-item${item.isMe ? " me" : ""}`} key={item.name}>
+            <div
+              className={`mini-board-item${item.isMe ? " me" : ""}${item.userId && rankFlashingUserIds.includes(item.userId) ? " rank-flash" : ""}`}
+              key={item.userId || item.name}
+            >
               <span className={`mini-rank${item.rankClass ? ` ${item.rankClass}` : ""}`}>{item.rank}</span>
               <div
                 className="mini-av"

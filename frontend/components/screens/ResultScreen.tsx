@@ -1,85 +1,27 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { gameService } from "@/services/gameService";
+import { RoomStateResponse } from "@/types";
+import { wsService } from "@/services/websocketService";
 
 interface ResultScreenProps {
   roomCode: string;
 }
 
 interface LeaderboardRow {
-  rank: string;
-  rankClass?: string;
+  id: string;
+  userId: string;
+  rank: number;
   initials: string;
   name: string;
-  correct: string;
-  score: string;
+  score: number;
   gradient: string;
   isMe?: boolean;
+  rankClass?: string;
 }
-
-const leaderboard: LeaderboardRow[] = [
-  {
-    rank: "🥇",
-    rankClass: "gold-text",
-    initials: "LA",
-    name: "Lan Anh",
-    correct: "9/10 đúng",
-    score: "9,850",
-    gradient: "linear-gradient(135deg,var(--gold),#D97706)",
-  },
-  {
-    rank: "🥈",
-    rankClass: "silver-text",
-    initials: "MK",
-    name: "Minh Khoa",
-    correct: "8/10 đúng",
-    score: "8,600",
-    gradient: "linear-gradient(135deg,var(--primary),var(--primary-light))",
-    isMe: true,
-  },
-  {
-    rank: "🥉",
-    rankClass: "bronze-text",
-    initials: "TH",
-    name: "Tuấn Hùng",
-    correct: "7/10 đúng",
-    score: "7,200",
-    gradient: "linear-gradient(135deg,var(--accent),#0891B2)",
-  },
-  {
-    rank: "4",
-    initials: "NQ",
-    name: "Nam Quân",
-    correct: "6/10 đúng",
-    score: "5,800",
-    gradient: "linear-gradient(135deg,var(--green),#059669)",
-  },
-  {
-    rank: "5",
-    initials: "HV",
-    name: "Hồng Vân",
-    correct: "5/10 đúng",
-    score: "4,500",
-    gradient: "linear-gradient(135deg,#EC4899,#BE185D)",
-  },
-  {
-    rank: "6",
-    initials: "BK",
-    name: "Bảo Khang",
-    correct: "4/10 đúng",
-    score: "3,200",
-    gradient: "linear-gradient(135deg,#F59E0B,#D97706)",
-  },
-  {
-    rank: "7",
-    initials: "TL",
-    name: "Thùy Linh",
-    correct: "3/10 đúng",
-    score: "2,100",
-    gradient: "linear-gradient(135deg,#6366F1,#4F46E5)",
-  },
-];
 
 const confetti = [
   { left: "10%", background: "var(--gold)", delay: "0s", duration: "2.5s" },
@@ -92,11 +34,162 @@ const confetti = [
   { left: "33%", background: "var(--gold)", delay: ".8s", rounded: true },
 ];
 
+const podiumGradients = [
+  "linear-gradient(135deg,var(--gold),#D97706)",
+  "linear-gradient(135deg,var(--primary),var(--primary-light))",
+  "linear-gradient(135deg,var(--accent),#0891B2)",
+];
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
+};
+
+const formatScore = (score: number) => score.toLocaleString("vi-VN");
+
+const toLeaderboardRows = (leaderboard: any[]): LeaderboardRow[] => {
+  return leaderboard
+    .slice()
+    .sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0))
+    .map((item, index) => {
+      const name = item.display_name || `Người chơi ${index + 1}`;
+      const score = Number(item.final_score ?? item.score ?? 0);
+      const rank = Number(item.rank ?? index + 1);
+
+      return {
+        id: String(item.id ?? `${item.user_id}-${rank}`),
+        userId: String(item.user_id),
+        rank,
+        initials: getInitials(name),
+        name,
+        score,
+        gradient: podiumGradients[index % podiumGradients.length],
+        rankClass: rank === 1 ? "gold-text" : rank === 2 ? "silver-text" : rank === 3 ? "bronze-text" : undefined,
+      };
+    });
+};
+
 export default function ResultScreen({ roomCode }: ResultScreenProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const [results, setResults] = useState<LeaderboardRow[]>([]);
+  const [roomState, setRoomState] = useState<RoomStateResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const previousRanksRef = useRef<Map<string, number>>(new Map());
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyLeaderboard = (leaderboard: any[]) => {
+    const nextRows = toLeaderboardRows(leaderboard);
+    const previousRanks = previousRanksRef.current;
+    const changedRows = nextRows.filter((row) => previousRanks.get(row.userId) !== row.rank);
+
+    previousRanksRef.current = new Map(nextRows.map((row) => [row.userId, row.rank]));
+    setResults(nextRows);
+
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+
+    if (changedRows.length) {
+      setHighlightedRowIds(changedRows.map((row) => row.id));
+      highlightTimerRef.current = setTimeout(() => {
+        setHighlightedRowIds([]);
+        highlightTimerRef.current = null;
+      }, 900);
+    } else {
+      setHighlightedRowIds([]);
+    }
+  };
+
+  const [highlightedRowIds, setHighlightedRowIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!roomCode) return;
+
+    let cancelled = false;
+
+    const loadResults = async () => {
+      try {
+        const [nextRoomState, nextResults] = await Promise.all([
+          gameService.getRoomState(roomCode),
+          gameService.getGameResults(roomCode),
+        ]);
+
+        if (cancelled) return;
+
+        setRoomState(nextRoomState);
+        applyLeaderboard(nextResults as any[]);
+        setError(null);
+        setIsLoading(false);
+      } catch (loadError) {
+        if (cancelled) return;
+        console.error("Failed to load results:", loadError);
+        setError("Không thể tải bảng xếp hạng realtime. Đang thử lại...");
+        setIsLoading(false);
+      }
+    };
+
+    void loadResults();
+
+    const handleLeaderboardUpdate = (payload: any) => {
+      if (cancelled) return;
+
+      const leaderboard = payload?.data?.leaderboard;
+      if (Array.isArray(leaderboard)) {
+        applyLeaderboard(leaderboard);
+        setError(null);
+        setIsLoading(false);
+      }
+    };
+
+    const handleGameEnded = async () => {
+      if (cancelled) return;
+      await loadResults();
+    };
+
+    const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
+    wsService.on("PLAYER_ANSWERED", handleLeaderboardUpdate);
+    wsService.on("GAME_ENDED", handleGameEnded);
+
+    if (accessToken) {
+      wsService.connect(accessToken, roomCode).catch((connectError) => {
+        console.error("Failed to connect results websocket:", connectError);
+      });
+    }
+
+    return () => {
+      cancelled = true;
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+      wsService.off("PLAYER_ANSWERED", handleLeaderboardUpdate);
+      wsService.off("GAME_ENDED", handleGameEnded);
+      wsService.disconnect();
+    };
+  }, [roomCode]);
+
+  const rows = useMemo<LeaderboardRow[]>(() => {
+    return results.map((result) => ({
+      ...result,
+      score: result.score,
+      isMe: result.userId === user?.id,
+    }));
+  }, [results, user?.id]);
+
+  const topThree = rows.slice(0, 3);
+  const miniBoardRows = rows.slice(0, 8);
+  const room = roomState?.room;
+  const title = room?.status === "FINISHED" ? "Game kết thúc!" : "Bảng xếp hạng realtime";
+  const subtitle = room
+    ? `${room.player_count ?? roomState?.player_count ?? rows.length} người chơi • ${roomState?.game_state.total_questions ?? 0} câu hỏi • Phòng ${roomCode}`
+    : `Phòng ${roomCode}`;
 
   return (
     <div className="result-wrap">
+      <div className="result-layout">
+        <main className="result-main">
       <section className="result-hero">
         <div className="result-confetti">
           {confetti.map((item, index) => (
@@ -115,67 +208,35 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
         </div>
         <div className="result-trophy">🏆</div>
         <h1 className="result-title">
-          Game kết thúc! <span>Xuất sắc!</span>
+          {title} <span>{room?.status === "FINISHED" ? "Xuất sắc!" : "Đang cập nhật theo WebSocket"}</span>
         </h1>
-        <p className="result-sub">🌍 Địa Lý Thế Giới • 7 người chơi • 10 câu hỏi • Phòng {roomCode}</p>
+        <p className="result-sub">{subtitle}</p>
+        {error && <p className="result-sub">{error}</p>}
+        {isLoading && <p className="result-sub">Đang tải bảng xếp hạng...</p>}
       </section>
 
       <section className="podium">
-        <div className="podium-item">
-          <div className="podium-av silver" style={{ background: "linear-gradient(135deg,var(--primary),var(--primary-light))" }}>
-            MK
-          </div>
-          <div className="podium-name podium-name-small">
-            Minh Khoa
-            <br />
-            <span className="podium-me">(Bạn)</span>
-          </div>
-          <div className="podium-score">8,600</div>
-          <div className="podium-bar silver">
-            <div className="podium-pos silver">2</div>
-          </div>
-        </div>
-
-        <div className="podium-item">
-          <div className="podium-av gold" style={{ background: "linear-gradient(135deg,var(--gold),#D97706)" }}>
-            LA
-          </div>
-          <div className="podium-name">Lan Anh</div>
-          <div className="podium-score">9,850</div>
-          <div className="podium-bar gold">
-            <div className="podium-pos gold">1</div>
-          </div>
-        </div>
-
-        <div className="podium-item">
-          <div className="podium-av bronze" style={{ background: "linear-gradient(135deg,var(--accent),#0891B2)" }}>
-            TH
-          </div>
-          <div className="podium-name">Tuấn Hùng</div>
-          <div className="podium-score">7,200</div>
-          <div className="podium-bar bronze">
-            <div className="podium-pos bronze">3</div>
-          </div>
-        </div>
-      </section>
-
-      <section className="full-leaderboard">
-        <div className="lb-header">
-          <span className="lb-title">📊 Bảng xếp hạng đầy đủ</span>
-          <span className="lb-total">{leaderboard.length} người chơi</span>
-        </div>
-
-        {leaderboard.map((row) => (
-          <div className={`lb-row${row.isMe ? " me" : ""}`} key={row.name}>
-            <div className={`lb-rank-num${row.rankClass ? ` ${row.rankClass}` : ""}`}>{row.rank}</div>
-            <div className="lb-av" style={{ background: row.gradient }}>
+        {topThree.map((row, index) => (
+          <div className="podium-item" key={`${row.rank}-${row.name}`}>
+            <div
+              className={`podium-av ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}
+              style={{ background: podiumGradients[index] }}
+            >
               {row.initials}
             </div>
-            <div className="lb-name">
-              {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
+            <div className={`podium-name${index === 1 && row.isMe ? " podium-name-small" : ""}`}>
+              {row.name}
+              {row.isMe && (
+                <>
+                  <br />
+                  <span className="podium-me">(Bạn)</span>
+                </>
+              )}
             </div>
-            <div className="lb-correct">{row.correct}</div>
-            <div className="lb-score-val">{row.score}</div>
+            <div className="podium-score">{formatScore(row.score)}</div>
+            <div className={`podium-bar ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>
+              <div className={`podium-pos ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>{row.rank}</div>
+            </div>
           </div>
         ))}
       </section>
@@ -187,6 +248,40 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
         <button className="btn-home" onClick={() => router.push("/dashboard")}>
           🏠 Về trang chủ
         </button>
+      </div>
+        </main>
+
+        <aside className="mini-board" aria-label="Mini leaderboard realtime">
+          <div className="mini-board-header">
+            <div>
+              <div className="mini-board-kicker">LIVE RANKING</div>
+              <div className="mini-board-title">Mini-board dọc</div>
+            </div>
+            <span className={`mini-board-pill${room?.status === "FINISHED" ? " done" : " live"}`}>
+              {room?.status === "FINISHED" ? "FINAL" : "LIVE"}
+            </span>
+          </div>
+
+          <div className="mini-board-list">
+            {miniBoardRows.map((row) => (
+              <div
+                className={`mini-board-row${row.isMe ? " me" : ""}${highlightedRowIds.includes(row.id) ? " flash" : ""}`}
+                key={row.id}
+              >
+                <div className={`mini-rank${row.rankClass ? ` ${row.rankClass}` : ""}`}>{row.rank}</div>
+                <div className="mini-av" style={{ background: row.gradient }}>
+                  {row.initials}
+                </div>
+                <div className="mini-meta">
+                  <div className="mini-name">
+                    {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
+                  </div>
+                  <div className="mini-score">{formatScore(row.score)} pts</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
       </div>
     </div>
   );

@@ -159,7 +159,12 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--primary), var(--accent), var(--gold));
+  background: linear-gradient(
+    90deg,
+    var(--primary),
+    var(--accent),
+    var(--gold)
+  );
 }
 
 .question-num {
@@ -262,7 +267,10 @@
   letter-spacing: 0.02em;
   box-shadow: 0 16px 40px rgba(220, 38, 38, 0.32);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .game-leave-btn:hover:not(:disabled) {
@@ -324,9 +332,28 @@
   flex-shrink: 0;
 }
 
+.mini-board-item.rank-flash {
+  animation: rankFlash 0.7s ease;
+}
+
 .mini-board-item.me {
   border-color: var(--primary);
   background: rgba(124, 58, 237, 0.08);
+}
+
+@keyframes rankFlash {
+  0% {
+    transform: translateX(0);
+    background: rgba(124, 58, 237, 0.12);
+  }
+  45% {
+    transform: translateX(3px);
+    background: rgba(14, 165, 233, 0.14);
+    border-color: rgba(14, 165, 233, 0.45);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .mini-rank {
