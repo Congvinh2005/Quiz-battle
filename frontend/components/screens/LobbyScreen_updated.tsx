@@ -67,11 +67,12 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
+  const [isAutoJoining, setIsAutoJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [roomClosedMessage, setRoomClosedMessage] = useState<string | null>(null);
   const [isRealtimeReady, setIsRealtimeReady] = useState(false);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoJoinAttemptedRef = useRef(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasRedirectedRef = useRef(false);
 
@@ -98,6 +99,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
   }, []);
 
+  // Load room data
   useEffect(() => {
     const loadRoom = async () => {
       try {
@@ -133,6 +135,43 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       loadRoom();
     }
   }, [roomCode, isRoomNotFoundError, notifyRoomClosedAndRedirect, router]);
+
+  // Auto-join guests when they enter the room
+  useEffect(() => {
+    if (!roomCode || !user || isAutoJoining || autoJoinAttemptedRef.current) return;
+
+    const loadedPlayers = players;
+    const userAlreadyInRoom = loadedPlayers.some((player) => player.user_id === user.id);
+
+    if (userAlreadyInRoom) {
+      autoJoinAttemptedRef.current = true;
+      return; // Already in room, no need to auto-join
+    }
+
+    // Auto-join guest (non-host users)
+    const autoJoin = async () => {
+      try {
+        setIsAutoJoining(true);
+        autoJoinAttemptedRef.current = true;
+
+        await gameService.joinRoom(roomCode, user.username || `Player_${user.id?.slice(0, 4)}`);
+
+        // Refresh players list
+        const updatedPlayers = await gameService.getRoomPlayers(roomCode);
+        setPlayers(updatedPlayers);
+      } catch (err) {
+        // If error, let user join manually
+        console.error("Auto-join failed:", err);
+      } finally {
+        setIsAutoJoining(false);
+      }
+    };
+
+    // Auto-join after short delay to ensure room is loaded
+    if (players.length > 0) {
+      autoJoin();
+    }
+  }, [roomCode, user, players, isAutoJoining]);
 
   // Polling fallback: Check room status every 500ms to catch game start
   useEffect(() => {
@@ -170,6 +209,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
   }, [roomCode, router]);
 
+  // WebSocket realtime updates
   useEffect(() => {
     if (!roomCode || roomClosedMessage) return;
 
@@ -221,12 +261,22 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       notifyRoomClosedAndRedirect(message);
     };
 
+    const handleChatMessage = (data: any) => {
+      if (data?.data?.user?.username && data?.data?.message) {
+        setChatMessages(prev => [...prev, {
+          name: data.data.user.username,
+          text: data.data.message,
+        }]);
+      }
+    };
+
     setIsRealtimeReady(false);
 
     wsService.on("PLAYER_JOINED", handlePlayerJoined);
     wsService.on("PLAYER_LEFT", handlePlayerLeft);
     wsService.on("GAME_STARTED", handleGameStarted);
     wsService.on("ROOM_CLOSED", handleRoomClosed);
+    wsService.on("CHAT_MESSAGE", handleChatMessage);
 
     wsService.connect(accessToken, roomCode).catch((err) => {
       console.error("Failed to connect websocket:", err);
@@ -239,6 +289,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       wsService.off("PLAYER_LEFT", handlePlayerLeft);
       wsService.off("GAME_STARTED", handleGameStarted);
       wsService.off("ROOM_CLOSED", handleRoomClosed);
+      wsService.off("CHAT_MESSAGE", handleChatMessage);
       wsService.disconnect();
     };
   }, [roomCode, roomClosedMessage, notifyRoomClosedAndRedirect, router]);
@@ -265,38 +316,17 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const isPlaying = room?.status === "PLAYING";
   const isCurrentUserHost = !!(user?.id && room?.host_id && user.id === room.host_id);
 
-  const handleSendChat = (event: FormEvent<HTMLFormElement>) => {
+  const handleSendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = chatInput.trim();
-    if (!text) return;
-
-    setChatMessages((current) => [...current, { name: "Bạn", text }]);
-    setChatInput("");
-  };
-
-  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!joinDisplayName.trim()) {
-      setError("Vui lòng nhập tên hiển thị.");
-      return;
-    }
+    if (!text || !roomCode) return;
 
     try {
-      setIsJoining(true);
-      setError(null);
-      await gameService.joinRoom(displayRoomCode, joinDisplayName);
-      // Refresh players list after joining
-      const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
-      setPlayers(updatedPlayers);
+      await gameService.postChatMessage(roomCode, { message: text });
+      setChatInput("");
+      // Message will be added via WebSocket listener
     } catch (err) {
-      if (isRoomNotFoundError(err)) {
-        notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
-        return;
-      }
-
-      setError("Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.");
-    } finally {
-      setIsJoining(false);
+      console.error("Failed to send chat:", err);
     }
   };
 
@@ -316,7 +346,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       setError(null);
       const updatedRoom = await gameService.startGame(displayRoomCode);
       setRoom(updatedRoom);
-      router.push(`/game/${displayRoomCode}`);
+      // Navigation will be handled by WebSocket GAME_STARTED event
     } catch (err) {
       if (isRoomNotFoundError(err)) {
         notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
@@ -348,6 +378,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         <div>
           <h1 className="page-title">👥 Sảnh chờ</h1>
           <p className="lobby-subtitle">Chờ mọi người vào đủ rồi bắt đầu!</p>
+          {isAutoJoining && (
+            <p className="lobby-subtitle" style={{ fontSize: "14px", opacity: 0.75, color: "#4CAF50" }}>
+              ✓ Đang tự động vào phòng...
+            </p>
+          )}
           {!isRealtimeReady && !roomClosedMessage && (
             <p className="lobby-subtitle" style={{ fontSize: "14px", opacity: 0.75 }}>
               Đang kết nối realtime...
@@ -361,25 +396,6 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       </div>
 
       {error && <div className="lobby-error">{error}</div>}
-
-      {!currentUserInRoom && (
-        <form className="join-form-card" onSubmit={handleJoinRoom}>
-          <div className="join-form-title">📍 Nhập tên để vào phòng</div>
-          <div className="join-form-row">
-            <input
-              className="join-input"
-              type="text"
-              placeholder="Tên của bạn..."
-              value={joinDisplayName}
-              onChange={(e) => setJoinDisplayName(e.target.value)}
-              disabled={isJoining}
-            />
-            <button className="join-btn" type="submit" disabled={isJoining}>
-              {isJoining ? "Đang vào..." : "✓ Vào phòng"}
-            </button>
-          </div>
-        </form>
-      )}
 
       <div className="lobby-grid">
         <section className="players-area">
@@ -422,9 +438,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             <div className="qp-meta">
               <span>📝 {room?.quiz?.question_count || 10} câu hỏi</span>
               <span>⏱ {room?.quiz?.total_duration_formatted || "~5m 30s"}</span>
-              
               <span>🔀 {room?.settings?.shuffle_questions ? "Câu hỏi bị shuffle" : "Câu hỏi không shuffle"}</span>
-              {room?.quiz_id && <span>Quiz ID: {room.quiz_id}</span>}
             </div>
           </div>
 
@@ -458,13 +472,10 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
               {isStarting ? "Đang bắt đầu..." : isPlaying ? "Đang chơi" : `🚀 Bắt đầu game! (${displayPlayers.length} người)`}
             </button>
           ) : (
-            <button className="btn-start" disabled>
-              ⏳ Chờ host bắt đầu game
+            <button className="btn-start" onClick={handleLeaveRoom} disabled={isLeaving}>
+              {isLeaving ? "Đang rời..." : "👋 Rời phòng"}
             </button>
           )}
-          <button className="btn-leave" onClick={handleLeaveRoom} disabled={isLeaving}>
-            {isLeaving ? "Đang rời phòng..." : "↩ Rời phòng"}
-          </button>
         </aside>
       </div>
     </div>

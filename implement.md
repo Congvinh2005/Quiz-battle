@@ -13,16 +13,15 @@ Hiện tại frontend đã có giao diện cho Dashboard, Editor, Create Room, L
 
 # Kiến trúc đề xuất
 
-* Backend: FastAPI + SQLAlchemy + PostgreSQL.
-* Realtime: nên dùng 1 cách duy nhất.
-
-  * Cách đơn giản: FastAPI native WebSocket tại `/ws/game/{room_code}`.
-  * Nếu dùng frontend `socket.io-client` hiện tại thì backend phải chạy Socket.IO server tương ứng. FastAPI WebSocket native không tương thích trực tiếp với socket.io-client.
+- Backend: FastAPI + SQLAlchemy + PostgreSQL.
+- Realtime: nên dùng 1 cách duy nhất.
+  - Cách đơn giản: FastAPI native WebSocket tại `/ws/game/{room_code}`.
+  - Nếu dùng frontend `socket.io-client` hiện tại thì backend phải chạy Socket.IO server tương ứng. FastAPI WebSocket native không tương thích trực tiếp với socket.io-client.
 
 Khuyến nghị:
 
-* Dùng FastAPI native WebSocket.
-* Sửa `frontend/services/websocketService.ts` sang `new WebSocket(...)`.
+- Dùng FastAPI native WebSocket.
+- Sửa `frontend/services/websocketService.ts` sang `new WebSocket(...)`.
 
 ---
 
@@ -30,23 +29,23 @@ Khuyến nghị:
 
 DB đã có các bảng chính:
 
-* `users`, `refresh_tokens`
-* `quizzes`, `questions`, `answer_options`
-* `game_rooms`, `room_players`, `game_questions`, `player_answers`, `game_results`, `chat_messages`
-* `user_stats`
+- `users`, `refresh_tokens`
+- `quizzes`, `questions`, `answer_options`
+- `game_rooms`, `room_players`, `game_questions`, `player_answers`, `game_results`, `chat_messages`
+- `user_stats`
 
 API hiện có nhưng còn thiếu:
 
-* `GET /quizzes`: mới trả quiz, chưa trả questions/options/count.
-* `GET /quizzes/{id}`: mới trả quiz, chưa trả questions/options.
-* `POST /quizzes`: mới tạo quiz title/description/is_public, chưa tạo questions/options.
-* Chưa có `PUT /quizzes/{id}`, `DELETE /quizzes/{id}`.
-* Chưa có API riêng cho questions/options hoàn chỉnh.
-* `POST /rooms`: tạo room nhưng chưa lưu settings, chưa auto add host vào `room_players`.
-* `POST /rooms/{code}/start`: chỉ đổi status, chưa tạo `game_questions`, chưa set câu hỏi hiện tại, chưa broadcast.
-* `GET /rooms/{code}/results`: mới tính tạm từ `room_players`, chưa dùng `game_results`.
-* `GET /rooms/{code}/chat`: đang return empty.
-* Chưa có API submit answer, next question, finish game.
+- `GET /quizzes`: mới trả quiz, chưa trả questions/options/count.
+- `GET /quizzes/{id}`: mới trả quiz, chưa trả questions/options.
+- `POST /quizzes`: mới tạo quiz title/description/is_public, chưa tạo questions/options.
+- Chưa có `PUT /quizzes/{id}`, `DELETE /quizzes/{id}`.
+- Chưa có API riêng cho questions/options hoàn chỉnh.
+- `POST /rooms`: tạo room nhưng chưa lưu settings, chưa auto add host vào `room_players`.
+- `POST /rooms/{code}/start`: chỉ đổi status, chưa tạo `game_questions`, chưa set câu hỏi hiện tại, chưa broadcast.
+- `GET /rooms/{code}/results`: mới tính tạm từ `room_players`, chưa dùng `game_results`.
+- `GET /rooms/{code}/chat`: đang return empty.
+- Chưa có API submit answer, next question, finish game.
 
 ---
 
@@ -76,8 +75,8 @@ ADD COLUMN rating FLOAT DEFAULT 0;
 
 Tất cả serializer nên trả:
 
-* `created_at`
-* `updated_at`
+- `created_at`
+- `updated_at`
 
 ---
 
@@ -85,11 +84,11 @@ Tất cả serializer nên trả:
 
 Đã có:
 
-* `POST /auth/register`
-* `POST /auth/login`
-* `GET /auth/me`
-* `POST /auth/refresh`
-* `POST /auth/logout`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/refresh`
+- `POST /auth/logout`
 
 ## Cần thêm:
 
@@ -115,49 +114,49 @@ Tất cả serializer nên trả:
 
 Support:
 
-* `mine=true`
-* `public=true`
-* `include_questions=true`
+- `mine=true`
+- `public=true`
+- `include_questions=true`
 
 Ví dụ:
 
-* `GET /quizzes?mine=true`
-* `GET /quizzes?public=true&limit=20`
-* `GET /quizzes?mine=true&include_counts=true`
+- `GET /quizzes?mine=true`
+- `GET /quizzes?public=true&limit=20`
+- `GET /quizzes?mine=true&include_counts=true`
 
 ## GET /quizzes/{quiz_id}
 
 Trả quiz đầy đủ gồm:
 
-* questions
-* answer_options
-* question_type
-* time_limit
-* points
+- questions
+- answer_options
+- question_type
+- time_limit
+- points
 
 ## POST /quizzes
 
 Validate:
 
-* title không rỗng
-* ít nhất 1 question
-* MCQ có 2-4 options
-* đúng đúng 1 answer correct
-* points > 0
+- title không rỗng
+- ít nhất 1 question
+- MCQ có 2-4 options
+- đúng đúng 1 answer correct
+- points > 0
 
 DB transaction:
 
-* tạo quiz
-* tạo questions
-* tạo answer_options
-* rollback nếu lỗi
+- tạo quiz
+- tạo questions
+- tạo answer_options
+- rollback nếu lỗi
 
 ## PUT /quizzes/{quiz_id}
 
 Giai đoạn đầu:
 
-* xóa questions/options cũ
-* tạo lại toàn bộ
+- xóa questions/options cũ
+- tạo lại toàn bộ
 
 ## DELETE /quizzes/{quiz_id}
 
@@ -175,10 +174,10 @@ Copy quiz public về quiz của user.
 
 Trả:
 
-* stats
-* my_quizzes
-* public_quizzes
-* recent_activities
+- stats
+- my_quizzes
+- public_quizzes
+- recent_activities
 
 ---
 
@@ -188,33 +187,33 @@ Trả:
 
 BE cần:
 
-* validate quiz
-* validate quyền
-* validate questions/options
-* tạo room_code unique
-* auto add host
+- validate quiz
+- validate quyền
+- validate questions/options
+- tạo room_code unique
+- auto add host
 
 ## GET /rooms/{room_code}
 
 Trả:
 
-* room info
-* quiz preview
-* players
-* settings
+- room info
+- quiz preview
+- players
+- settings
 
 ## POST /rooms/{room_code}/join
 
 Rules:
 
-* reject nếu room full
-* reject nếu playing và không cho late join
-* broadcast PLAYER_JOINED
+- reject nếu room full
+- reject nếu playing và không cho late join
+- broadcast PLAYER_JOINED
 
 ## POST /rooms/{room_code}/leave
 
-* broadcast PLAYER_LEFT
-* transfer host hoặc close room nếu host leave
+- broadcast PLAYER_LEFT
+- transfer host hoặc close room nếu host leave
 
 ## POST /rooms/{room_code}/start
 
@@ -222,10 +221,10 @@ Chỉ host được start.
 
 BE cần:
 
-* tạo game_questions
-* set current_question_order
-* broadcast GAME_STARTED
-* broadcast QUESTION_CHANGED
+- tạo game_questions
+- set current_question_order
+- broadcast GAME_STARTED
+- broadcast QUESTION_CHANGED
 
 ---
 
@@ -239,27 +238,27 @@ Dùng khi refresh trang game.
 
 BE cần:
 
-* validate room
-* validate player
-* validate current question
-* tính điểm
-* insert player_answers
-* update score
-* broadcast leaderboard
+- validate room
+- validate player
+- validate current question
+- tính điểm
+- insert player_answers
+- update score
+- broadcast leaderboard
 
 ## POST /rooms/{room_code}/next-question
 
-* chuyển câu tiếp theo
-* broadcast QUESTION_CHANGED
-* nếu hết câu -> finish game
+- chuyển câu tiếp theo
+- broadcast QUESTION_CHANGED
+- nếu hết câu -> finish game
 
 ## POST /rooms/{room_code}/finish
 
 BE cần:
 
-* update game_results
-* update user_stats
-* broadcast GAME_ENDED
+- update game_results
+- update user_stats
+- broadcast GAME_ENDED
 
 ## GET /rooms/{room_code}/leaderboard
 
@@ -273,10 +272,10 @@ Mini leaderboard realtime.
 
 Trả:
 
-* rank
-* final_score
-* correct_count
-* total_questions
+- rank
+- final_score
+- correct_count
+- total_questions
 
 ---
 
@@ -286,16 +285,16 @@ Trả:
 
 Support:
 
-* limit
-* pagination
+- limit
+- pagination
 
 ## POST /rooms/{room_code}/chat
 
 BE cần:
 
-* validate room/chat_enabled
-* insert chat_messages
-* broadcast CHAT_MESSAGE
+- validate room/chat_enabled
+- insert chat_messages
+- broadcast CHAT_MESSAGE
 
 ---
 
@@ -331,8 +330,8 @@ Server -> Client:
 
 Khuyến nghị:
 
-* REST cho action chính
-* WebSocket để broadcast realtime
+- REST cho action chính
+- WebSocket để broadcast realtime
 
 ---
 
@@ -342,21 +341,21 @@ Khuyến nghị:
 
 Update:
 
-* QuizSummary
-* QuizDetail
-* DashboardResponse
-* RoomDetail
-* GameState
-* ResultsResponse
+- QuizSummary
+- QuizDetail
+- DashboardResponse
+- RoomDetail
+- GameState
+- ResultsResponse
 
 ## Services
 
 Update:
 
-* quizService
-* gameService
-* dashboardService
-* websocketService
+- quizService
+- gameService
+- dashboardService
+- websocketService
 
 Nếu dùng native WebSocket:
 
@@ -366,38 +365,38 @@ new WebSocket(...)
 
 ## DashboardScreen
 
-* gọi API thật
-* loading/error state
-* bỏ demo fallback
+- gọi API thật
+- loading/error state
+- bỏ demo fallback
 
 ## QuizEditorScreen
 
 Validate FE:
 
-* title required
-* question required
-* đúng 1 đáp án correct
+- title required
+- question required
+- đúng 1 đáp án correct
 
 ## CreateRoomScreen
 
-* load quiz thật
-* create room thật
+- load quiz thật
+- create room thật
 
 ## LobbyScreen
 
-* realtime players/chat
-* start game
+- realtime players/chat
+- start game
 
 ## GameplayScreen
 
-* render current question thật
-* realtime leaderboard
-* submit answer thật
+- render current question thật
+- realtime leaderboard
+- submit answer thật
 
 ## ResultScreen
 
-* render results thật
-* podium top 3
+- render results thật
+- podium top 3
 
 ---
 
@@ -405,26 +404,26 @@ Validate FE:
 
 ## quiz_service.py
 
-* list_quizzes
-* get_quiz_detail
-* create_quiz_with_questions
-* update_quiz_with_questions
-* delete_quiz
-* duplicate_quiz
+- list_quizzes
+- get_quiz_detail
+- create_quiz_with_questions
+- update_quiz_with_questions
+- delete_quiz
+- duplicate_quiz
 
 ## game_service.py
 
-* create_room
-* join_room
-* leave_room
-* start_room
-* get_game_state
-* submit_answer
-* advance_question
-* finish_room
-* get_results
-* get_leaderboard
-* send_chat
+- create_room
+- join_room
+- leave_room
+- start_room
+- get_game_state
+- submit_answer
+- advance_question
+- finish_room
+- get_results
+- get_leaderboard
+- send_chat
 
 ---
 
@@ -432,14 +431,14 @@ Validate FE:
 
 Cần đảm bảo:
 
-* write API cần auth
-* chỉ owner sửa quiz
-* chỉ host start game
-* chỉ player trong room submit answer
-* mỗi user answer 1 lần/câu
-* không trả is_correct quá sớm
-* limit chat message
-* room code unique
+- write API cần auth
+- chỉ owner sửa quiz
+- chỉ host start game
+- chỉ player trong room submit answer
+- mỗi user answer 1 lần/câu
+- không trả is_correct quá sớm
+- limit chat message
+- room code unique
 
 ---
 
@@ -487,50 +486,50 @@ Cần đảm bảo:
 
 ## Auth
 
-* POST /auth/register (Done)
-* POST /auth/login (Done)
-* GET /auth/me 🔒 (Done)
-* POST /auth/refresh (Done)
-* POST /auth/logout 🔒 (Done)
+- POST /auth/register (Done)
+- POST /auth/login (Done)
+- GET /auth/me 🔒 (Done)
+- POST /auth/refresh (Done)
+- POST /auth/logout 🔒 (Done)
 
 ## Dashboard
 
-* GET /dashboard 🔒
+- GET /dashboard 🔒
 
 ## Quiz
 
-* GET /quizzes 🔒 (Done)
-* GET /quizzes/{quiz_id} 🔒 (Done)
-* POST /quizzes 🔒 (Done)
-* PUT /quizzes/{quiz_id} 🔒(Done)
-* DELETE /quizzes/{quiz_id} 🔒(Done)
-* POST /quizzes/{quiz_id}/duplicate 🔒(Stop)
+- GET /quizzes 🔒 (Done)
+- GET /quizzes/{quiz_id} 🔒 (Done)
+- POST /quizzes 🔒 (Done)
+- PUT /quizzes/{quiz_id} 🔒(Done)
+- DELETE /quizzes/{quiz_id} 🔒(Done)
+- POST /quizzes/{quiz_id}/duplicate 🔒(Stop)
 
 ## Room
 
-* POST /rooms 🔒(Done)
-* GET /rooms/{room_code} 🔒(Done)
-* POST /rooms/{room_code}/join 🔒(Continue)
-* POST /rooms/{room_code}/leave 🔒(Continue)
-* GET /rooms/{room_code}/players 🔒
-* POST /rooms/{room_code}/start 🔒
+- POST /rooms 🔒(Done)
+- GET /rooms/{room_code} 🔒(Done)
+- POST /rooms/{room_code}/join 🔒(Done)
+- POST /rooms/{room_code}/leave 🔒(Done)
+- GET /rooms/{room_code}/players 🔒(Done)
+- POST /rooms/{room_code}/start 🔒(Done)
 
 ## Gameplay
 
-* GET /rooms/{room_code}/state 🔒
-* POST /rooms/{room_code}/answers 🔒
-* GET /rooms/{room_code}/leaderboard 🔒
-* POST /rooms/{room_code}/next-question 🔒
-* POST /rooms/{room_code}/finish 🔒
+- GET /rooms/{room_code}/state 🔒
+- POST /rooms/{room_code}/answers 🔒
+- GET /rooms/{room_code}/leaderboard 🔒
+- POST /rooms/{room_code}/next-question 🔒
+- POST /rooms/{room_code}/finish 🔒
 
 ## Chat
 
-* GET /rooms/{room_code}/chat 🔒
-* POST /rooms/{room_code}/chat 🔒
+- GET /rooms/{room_code}/chat 🔒
+- POST /rooms/{room_code}/chat 🔒
 
 ## Result
 
-* GET /rooms/{room_code}/results 🔒
+- GET /rooms/{room_code}/results 🔒
 
 ## Realtime
 
@@ -546,7 +545,27 @@ WS /ws/game/{room_code}?token=<access_token> 🔒
 4. Nên có seed data.
 5. Nên viết test:
 
-* Quiz CRUD
-* Room create/join/start
-* Submit answer
-* Finish game/result/user_stats
+- Quiz CRUD
+- Room create/join/start
+- Submit answer
+- Finish game/result/user_stats
+
+## Developer Notes (added)
+
+- Priority next work:
+  - Implement `POST /rooms/{room_code}/chat` (validate chat_enabled -> insert `chat_messages` -> return saved message).
+  - Add WS `CHAT_MESSAGE` handler in `backend/app/websockets/game_socket.py`: on event validate user/room, save message to DB, then `manager.broadcast(room_code, {type: 'CHAT_MESSAGE', data: serialized_message})`.
+  - Implement `GET /rooms/{room_code}/chat` with `limit`/`offset` for lobby history load.
+  - Finish `POST /rooms/{room_code}/start` workflow (create `game_questions`, set `current_question_order`, broadcast `GAME_STARTED` and initial `QUESTION_CHANGED`).
+
+- WebSocket responsibilities (summary):
+  - Real-time: `CHAT_MESSAGE`, `PLAYER_JOINED`, `PLAYER_LEFT`, `GAME_STARTED`, `QUESTION_CHANGED`, `PLAYER_ANSWERED`, `LEADERBOARD_UPDATED`, `ROOM_CLOSED`.
+  - REST-first actions: create/join/leave/start should write DB then broadcast via WS.
+
+- Frontend changes:
+  - Switch `frontend/services/websocketService.ts` to native `WebSocket` (or run a Socket.IO server on backend) to match backend raw WebSocket endpoint.
+  - On lobby mount: load room + last N chat messages via REST, then open WS to receive live updates.
+
+- Operational notes:
+  - Keep `ConnectionManager` in-memory for single instance; add Redis pub/sub if scaling to multiple instances.
+  - Rate-limit chat messages per user and validate message length to avoid abuse.

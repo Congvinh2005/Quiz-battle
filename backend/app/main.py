@@ -26,6 +26,19 @@ app.add_middleware(
 def startup():
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created successfully!")
+    
+    # Run Alembic migrations
+    try:
+        from alembic.config import Config
+        from alembic import command
+        import os
+        
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+        alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
+        command.upgrade(alembic_cfg, "head")
+        print("✅ Alembic migrations completed!")
+    except Exception as e:
+        print(f"⚠️ Alembic migration failed: {e}")
 
 # Include routers
 app.include_router(api_router)

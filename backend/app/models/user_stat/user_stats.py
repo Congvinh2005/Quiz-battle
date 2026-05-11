@@ -17,5 +17,6 @@ class UserStats(BaseModel):
     total_games = Column(Integer, default=0)
     total_score = Column(Integer, default=0)
     avg_score = Column(Float, default=0.0)
+    wins = Column(Integer, default=0)
 
     user = relationship("User", back_populates="user_stats")

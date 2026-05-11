@@ -93,6 +93,28 @@ export interface GameRoom {
   player_count?: number;
 }
 
+export interface GameStateSnapshot {
+  status: GameStatus;
+  current_question_order: number;
+  current_question: Question | null;
+  total_questions: number;
+  leaderboard: Array<{
+    rank: number;
+    user_id: string;
+    display_name: string;
+    score: number;
+  }>;
+}
+
+export interface RoomStateResponse {
+  room: GameRoom;
+  quiz: QuizPreview;
+  players: RoomPlayer[];
+  player_count: number;
+  settings: RoomSettings;
+  game_state: GameStateSnapshot;
+}
+
 export interface RoomPlayer {
   id: string;
   room_id: string;

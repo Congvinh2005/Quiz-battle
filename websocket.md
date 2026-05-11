@@ -145,3 +145,32 @@ Gợi ý chọn giá trị:
 - `10s`: phản hồi nhanh, hơi gắt khi mạng yếu
 - `15s`: cân bằng (khuyến nghị mặc định)
 - `20-30s`: thân thiện hơn cho mobile/mạng chập chờn
+
+## Developer Notes (added)
+
+- Quick implementation checklist for chat realtime:
+  1.  Add REST `POST /rooms/{room_code}/chat` that:
+      - Checks room exists and `chat_enabled`.
+      - Inserts `ChatMessage` (user_id, room_id, message).
+      - Returns serialized message (with `created_at` and user info).
+  2.  In `backend/app/websockets/game_socket.py` add a JSON event parser:
+      - Expect `{ "type": "CHAT_MESSAGE", "data": { "message": "..." } }` from authenticated socket.
+      - On receipt: validate user in room, insert `chat_messages` into DB, then `await manager.broadcast(room_code, {"type":"CHAT_MESSAGE","data": serialized_message})`.
+  3.  On FE: load recent chat via `GET /rooms/{room_code}/chat?limit=50`, then open WS and append incoming `CHAT_MESSAGE` events.
+
+- Example WS client connect (native WebSocket):
+
+  ```ts
+  const ws = new WebSocket(
+    `${WS_URL}/ws/game/${roomCode}?token=${accessToken}`,
+  );
+  ws.onmessage = (ev) => {
+    const event = JSON.parse(ev.data); /* handle by event.type */
+  };
+  ws.send(JSON.stringify({ type: "CHAT_MESSAGE", data: { message: "hi" } }));
+  ```
+
+- Testing & safety:
+  - Enforce per-user rate limit (e.g., 1 message/sec or burst tokens).
+  - Sanitize message length and content server-side.
+  - Add unit tests for REST chat and WS broadcast behavior.

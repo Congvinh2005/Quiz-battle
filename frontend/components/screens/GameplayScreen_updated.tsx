@@ -316,7 +316,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
                 {message.text}
               </div>
             ))}
-              {!chatMessages.length && !isLoading && <div className="chat-msg">Chưa có tin nhắn nào.</div>}
+            {!chatMessages.length && !isLoading && <div className="chat-msg">Chưa có tin nhắn nào.</div>}
           </div>
           <form className="chat-input-row" onSubmit={handleSendChat}>
             <input
