@@ -112,6 +112,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const maxPlayers = room?.settings?.max_players || 30;
   const emptySlots = Math.max(0, Math.min(2, maxPlayers - displayPlayers.length));
   const isPlaying = room?.status === "PLAYING";
+  const isCurrentUserHost = !!(user?.id && room?.host_id && user.id === room.host_id);
 
   const handleSendChat = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -146,6 +147,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const handleStartGame = async () => {
     if (!room) {
       router.push(`/game/${displayRoomCode}`);
+      return;
+    }
+
+    if (!isCurrentUserHost) {
+      setError("Chỉ host mới có quyền bắt đầu game.");
       return;
     }
 
@@ -281,9 +287,15 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             </form>
           </div>
 
-          <button className="btn-start" onClick={handleStartGame} disabled={isStarting || isPlaying || isLeaving}>
-            {isStarting ? "Đang bắt đầu..." : isPlaying ? "Đang chơi" : `🚀 Bắt đầu game! (${displayPlayers.length} người)`}
-          </button>
+          {isCurrentUserHost ? (
+            <button className="btn-start" onClick={handleStartGame} disabled={isStarting || isPlaying || isLeaving}>
+              {isStarting ? "Đang bắt đầu..." : isPlaying ? "Đang chơi" : `🚀 Bắt đầu game! (${displayPlayers.length} người)`}
+            </button>
+          ) : (
+            <button className="btn-start" disabled>
+              ⏳ Chờ host bắt đầu game
+            </button>
+          )}
           <button className="btn-leave" onClick={handleLeaveRoom} disabled={isLeaving}>
             {isLeaving ? "Đang rời phòng..." : "↩ Rời phòng"}
           </button>
