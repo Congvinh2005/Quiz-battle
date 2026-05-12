@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { quizService } from "@/services/quizService";
 import { gameService } from "@/services/gameService";
@@ -77,6 +77,7 @@ function makePreviewCode(room?: GameRoom | null) {
 
 export default function CreateRoomScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
@@ -94,7 +95,12 @@ export default function CreateRoomScreen() {
         setError(null);
         const data = await quizService.getAllQuizzes();
         setQuizzes(data);
-        if (data.length > 0) {
+
+        // Kiểm tra quizId từ URL params
+        const quizIdFromUrl = searchParams.get('quizId');
+        if (quizIdFromUrl && data.some(quiz => quiz.id === quizIdFromUrl)) {
+          setSelectedQuizId(quizIdFromUrl);
+        } else if (data.length > 0) {
           setSelectedQuizId(data[0].id);
         } else {
           setSelectedQuizId(demoQuizzes[0].id);
@@ -108,7 +114,7 @@ export default function CreateRoomScreen() {
     };
 
     loadQuizzes();
-  }, []);
+  }, [searchParams]);
 
   const selectableQuizzes = useMemo(() => {
     if (quizzes.length > 0) return quizzes.map(toSelectableQuiz);
