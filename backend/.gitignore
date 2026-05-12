@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -33,3 +34,8 @@ redisinsight_data/
 .vscode/
 .idea/
 *.swp
+=======
+.gitignore
+__pycache__/
+*.pyc
+>>>>>>> origin/phuong
