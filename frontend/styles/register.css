@@ -3,6 +3,30 @@
   display: flex; align-items: center; justify-content: center;
   position: relative; overflow: hidden; padding: 40px 20px;
 }
+.register-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--pill);
+  border: 1px solid var(--border2);
+  background: rgba(18, 18, 26, 0.72);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  backdrop-filter: blur(12px);
+  transition: all .2s;
+}
+.register-back-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124,58,237,.35);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
 .register-bg {
   position: absolute; inset: 0;
   background:

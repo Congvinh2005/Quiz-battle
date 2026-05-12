@@ -250,6 +250,10 @@
   left: 21px;
 }
 
+.setting-toggle.is-off {
+  background: rgba(255, 255, 255, 0.363);
+}
+
 .preview-card {
   background: var(--surface2);
   border: 1px solid var(--border2);

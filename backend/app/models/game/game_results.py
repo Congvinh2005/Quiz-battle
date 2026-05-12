@@ -15,7 +15,7 @@ class GameResult(BaseModel):
     __table_args__ = (UniqueConstraint('room_id', 'user_id', name='uq_room_user_result'),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    room_id = Column(UUID(as_uuid=True), ForeignKey("game_rooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    room_id = Column(UUID(as_uuid=True), ForeignKey("game_rooms.id"), nullable=False, index=True)  # No ondelete cascade - keep results when room deletes
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     final_score = Column(Integer)
     rank = Column(Integer)

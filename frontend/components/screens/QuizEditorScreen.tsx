@@ -177,9 +177,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     setActiveIndex((current) => current - 1);
   };
 
-  const previewQuestion = activeQuestion.text.trim() || "Nhập nội dung câu hỏi...";
-
-  const handleSaveQuiz = async () => {
+  const handleSaveAndPlay = async () => {
     if (isSaving) return;
 
     setIsSaving(true);
@@ -205,7 +203,54 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
         ? await quizService.updateQuiz(quizId, payload)
         : await quizService.createQuiz(payload);
 
+      // Chuyển sang create-room với quiz ID
+      router.push(`/create-room?quizId=${savedQuiz.id}`);
+    } catch (error) {
+      console.error("Failed to save quiz:", error);
+      alert("Lưu quiz thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveQuiz = async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const isCreatingNewQuiz = !quizId;
+      const payload: QuizSavePayload = {
+        title: quizTitle.trim(),
+        description: `Có ${questions.length} câu hỏi`,
+        is_public: visibility === "public",
+        questions: questions.map((q) => ({
+          content: q.text,
+          question_type: q.type,
+          time_limit: q.timeLimit,
+          points: q.points,
+          order_index: questions.indexOf(q),
+          answer_options: q.options.map((opt, idx) => ({
+            content: opt,
+            is_correct: idx === q.correctIndex,
+          })),
+        })),
+      };
+
+      const savedQuiz = quizId
+        ? await quizService.updateQuiz(quizId, payload)
+        : await quizService.createQuiz(payload);
+
+      if (isCreatingNewQuiz) {
+        alert(`Đã tạo quiz "${savedQuiz.title}" thành công!`);
+        router.push("/dashboard");
+        return;
+      }
+
+      alert(`Đã sửa quiz "${savedQuiz.title}" thành công!`);
       router.push(`/editor/${savedQuiz.id}`);
+    } catch (error) {
+      console.error("Failed to save quiz:", error);
+      alert("Lưu quiz thất bại. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
@@ -257,9 +302,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
         <div className="editor-sidebar-actions">
           <button className="btn-save" style={{ width: "100%" }} onClick={handleSaveQuiz} disabled={isSaving}>
-            {isSaving ? "Đang lưu..." : "💾 Lưu"}
+            {isSaving ? "Đang lưu..." : quizId ? "Cập nhật sửa" : "💾 Lưu"}
           </button>
-          <button className="btn-publish" style={{ width: "100%" }} onClick={() => router.push("/create-room")}>
+          <button className="btn-publish" style={{ width: "100%" }} onClick={handleSaveAndPlay} disabled={isSaving}>
             🚀 Lưu & Chơi
           </button>
         </div>
@@ -346,7 +391,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
         <section className="editor-preview">
           <div className="editor-preview-title">Preview câu hỏi</div>
-          <div className="preview-question">{previewQuestion}</div>
+          <div className="preview-question">{activeQuestion.text}</div>
           <div className="preview-options">
             {visibleOptions.map((option, index) => {
               const isCorrect = activeQuestion.correctIndex === index;

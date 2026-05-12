@@ -259,6 +259,10 @@ docker-compose down -v
 docker-compose up -d
 ```
 
+### 5. Mở Redis Insight GUI
+
+Sau khi `docker-compose up -d`, mở `http://localhost:5540` để truy cập Redis Insight và kết nối sẵn tới service Redis trong compose.
+
 ## Kiểm tra kết nối database
 
 Từ thư mục `backend/`:

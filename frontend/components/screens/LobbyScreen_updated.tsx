@@ -19,9 +19,6 @@ interface DisplayPlayer {
 }
 
 interface ChatLine {
-  id?: string;
-  userId?: string;
-  isHost?: boolean;
   name: string;
   text: string;
 }
@@ -34,6 +31,13 @@ const demoPlayers: DisplayPlayer[] = [
   { id: "demo-4", display_name: "Hồng Vân", score: 0 },
   { id: "demo-5", display_name: "Bảo Khang", score: 0 },
   { id: "demo-6", display_name: "Thùy Linh", score: 0 },
+];
+
+const demoChat: ChatLine[] = [
+  { name: "Lan Anh", text: "Sẵn sàng! 🎮" },
+  { name: "Tuấn Hùng", text: "Hy vọng câu về địa lý 😅" },
+  { name: "Nam Quân", text: "Ai biết thủ đô Nhật không? 😂" },
+  { name: "Hồng Vân", text: "Tokyo duhh 🤣" },
 ];
 
 const avatarGradients = [
@@ -57,54 +61,22 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const { user } = useAuth();
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatLine[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatLine[]>(demoChat);
   const [chatInput, setChatInput] = useState("");
   const [joinDisplayName, setJoinDisplayName] = useState(user?.username || "");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
+  const [isAutoJoining, setIsAutoJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const [isSendingChat, setIsSendingChat] = useState(false);
   const [roomClosedMessage, setRoomClosedMessage] = useState<string | null>(null);
   const [isRealtimeReady, setIsRealtimeReady] = useState(false);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoJoinAttemptedRef = useRef(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasRedirectedRef = useRef(false);
-  const chatMessagesRef = useRef<HTMLDivElement | null>(null);
 
   const isRoomNotFoundError = useCallback((err: any) => err?.response?.status === 404, []);
-  const getErrorMessage = useCallback((err: any, fallback: string) => {
-    return err?.response?.data?.detail || err?.message || fallback;
-  }, []);
-  const hostUserId = room?.host_id || null;
-  const toChatLine = useCallback((message: any): ChatLine => {
-    const userId = message?.user_id || message?.user?.id;
-    return {
-      id: message?.id,
-      userId,
-      isHost: !!(hostUserId && userId && String(userId) === String(hostUserId)),
-      name: message?.user?.username || message?.name || "Người chơi",
-      text: message?.message || message?.text || "",
-    };
-  }, [hostUserId]);
-  const mergeChatMessages = useCallback((current: ChatLine[], incoming: ChatLine[]) => {
-    if (!incoming.length) return current;
-
-    const existingIds = new Set(current.map((message) => message.id).filter(Boolean));
-    const appended = incoming.filter((message) => {
-      if (!message.id) return true;
-      return !existingIds.has(message.id);
-    });
-
-    if (!appended.length) return current;
-    return [...current, ...appended];
-  }, []);
-
-  useEffect(() => {
-    if (!chatMessagesRef.current) return;
-    chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
-  }, [chatMessages.length]);
 
   const notifyRoomClosedAndRedirect = useCallback((message: string) => {
     if (redirectTimeoutRef.current) return;
@@ -127,21 +99,18 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
   }, []);
 
+  // Load room data
   useEffect(() => {
     const loadRoom = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const [roomData, playersData, chatHistory] = await Promise.all([
+        const [roomData, playersData] = await Promise.all([
           gameService.getRoomByCode(roomCode),
           gameService.getRoomPlayers(roomCode),
-          gameService.getChatMessages(roomCode),
         ]);
         setRoom(roomData);
         setPlayers(playersData);
-        setChatMessages(
-          chatHistory.map((message) => toChatLine(message))
-        );
 
         // Auto-redirect if game is already playing (late joiners)
         if (roomData?.status === "PLAYING") {
@@ -166,6 +135,43 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       loadRoom();
     }
   }, [roomCode, isRoomNotFoundError, notifyRoomClosedAndRedirect, router]);
+
+  // Auto-join guests when they enter the room
+  useEffect(() => {
+    if (!roomCode || !user || isAutoJoining || autoJoinAttemptedRef.current) return;
+
+    const loadedPlayers = players;
+    const userAlreadyInRoom = loadedPlayers.some((player) => player.user_id === user.id);
+
+    if (userAlreadyInRoom) {
+      autoJoinAttemptedRef.current = true;
+      return; // Already in room, no need to auto-join
+    }
+
+    // Auto-join guest (non-host users)
+    const autoJoin = async () => {
+      try {
+        setIsAutoJoining(true);
+        autoJoinAttemptedRef.current = true;
+
+        await gameService.joinRoom(roomCode, user.username || `Player_${user.id?.slice(0, 4)}`);
+
+        // Refresh players list
+        const updatedPlayers = await gameService.getRoomPlayers(roomCode);
+        setPlayers(updatedPlayers);
+      } catch (err) {
+        // If error, let user join manually
+        console.error("Auto-join failed:", err);
+      } finally {
+        setIsAutoJoining(false);
+      }
+    };
+
+    // Auto-join after short delay to ensure room is loaded
+    if (players.length > 0) {
+      autoJoin();
+    }
+  }, [roomCode, user, players, isAutoJoining]);
 
   // Polling fallback: Check room status every 500ms to catch game start
   useEffect(() => {
@@ -203,6 +209,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
   }, [roomCode, router]);
 
+  // WebSocket realtime updates
   useEffect(() => {
     if (!roomCode || roomClosedMessage) return;
 
@@ -255,23 +262,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
 
     const handleChatMessage = (data: any) => {
-      if (data?.message) {
-        setChatMessages((prev) => {
-          const incomingId = typeof data?.id === "string" ? data.id : undefined;
-          if (incomingId && prev.some((msg) => msg.id === incomingId)) {
-            return prev;
-          }
-
-          return [
-            ...prev,
-            toChatLine({
-              id: incomingId,
-              user_id: data?.user_id,
-              user: data?.user,
-              message: data.message,
-            }),
-          ];
-        });
+      if (data?.user?.username && data?.message) {
+        setChatMessages(prev => [...prev, {
+          name: data.user.username,
+          text: data.message,
+        }]);
       }
     };
 
@@ -299,25 +294,6 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     };
   }, [roomCode, roomClosedMessage, notifyRoomClosedAndRedirect, router]);
 
-  useEffect(() => {
-    if (!roomCode) return;
-
-    const syncTimer = setInterval(async () => {
-      try {
-        const latest = await gameService.getChatMessages(roomCode);
-        const mapped: ChatLine[] = latest.map((message) => toChatLine(message));
-
-        setChatMessages((prev) => mergeChatMessages(prev, mapped));
-      } catch {
-        // Keep silent: websocket remains primary channel.
-      }
-    }, 1500);
-
-    return () => {
-      clearInterval(syncTimer);
-    };
-  }, [roomCode, mergeChatMessages, toChatLine]);
-
   const displayPlayers = useMemo<DisplayPlayer[]>(() => {
     if (players.length === 0) return demoPlayers;
 
@@ -343,65 +319,14 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const handleSendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = chatInput.trim();
-    if (!currentUserInRoom || !text || !roomCode) return;
+    if (!text || !roomCode) return;
 
     try {
-      setIsSendingChat(true);
-      setError(null);
-      const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
-      if (!accessToken) {
-        throw new Error("Thiếu access token để gửi chat realtime.");
-      }
-
-      if (!wsService.isConnected()) {
-        await wsService.connect(accessToken, roomCode);
-      }
-
-      wsService.emit("CHAT_MESSAGE", { message: text });
+      await gameService.postChatMessage(roomCode, { message: text });
       setChatInput("");
+      // Message will be added via WebSocket listener
     } catch (err) {
-      setError(getErrorMessage(err, "Không gửi được tin nhắn. Vui lòng thử lại."));
       console.error("Failed to send chat:", err);
-    } finally {
-      setIsSendingChat(false);
-    }
-  };
-
-  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalizedJoinDisplayName = joinDisplayName.trim();
-    if (!normalizedJoinDisplayName) {
-      setError("Vui lòng nhập tên hiển thị.");
-      return;
-    }
-
-    const normalizedTargetName = normalizedJoinDisplayName.toLowerCase();
-    const duplicatedName = players.some(
-      (player) => player.display_name.trim().toLowerCase() === normalizedTargetName
-    );
-
-    if (duplicatedName) {
-      const duplicateNameMessage = "tên đã tồn tại trong phòng";
-      setError(duplicateNameMessage);
-      return;
-    }
-
-    try {
-      setIsJoining(true);
-      setError(null);
-      await gameService.joinRoom(displayRoomCode, normalizedJoinDisplayName);
-      // Refresh players list after joining
-      const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
-      setPlayers(updatedPlayers);
-    } catch (err) {
-      if (isRoomNotFoundError(err)) {
-        notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
-        return;
-      }
-
-      setError("Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.");
-    } finally {
-      setIsJoining(false);
     }
   };
 
@@ -421,7 +346,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       setError(null);
       const updatedRoom = await gameService.startGame(displayRoomCode);
       setRoom(updatedRoom);
-      router.push(`/game/${displayRoomCode}`);
+      // Navigation will be handled by WebSocket GAME_STARTED event
     } catch (err) {
       if (isRoomNotFoundError(err)) {
         notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
@@ -453,6 +378,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         <div>
           <h1 className="page-title">👥 Sảnh chờ</h1>
           <p className="lobby-subtitle">Chờ mọi người vào đủ rồi bắt đầu!</p>
+          {isAutoJoining && (
+            <p className="lobby-subtitle" style={{ fontSize: "14px", opacity: 0.75, color: "#4CAF50" }}>
+              ✓ Đang tự động vào phòng...
+            </p>
+          )}
           {!isRealtimeReady && !roomClosedMessage && (
             <p className="lobby-subtitle" style={{ fontSize: "14px", opacity: 0.75 }}>
               Đang kết nối realtime...
@@ -466,25 +396,6 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       </div>
 
       {error && <div className="lobby-error">{error}</div>}
-
-      {!currentUserInRoom && (
-        <form className="join-form-card" onSubmit={handleJoinRoom}>
-          <div className="join-form-title">📍 Nhập tên để vào phòng</div>
-          <div className="join-form-row">
-            <input
-              className="join-input"
-              type="text"
-              placeholder="Tên của bạn..."
-              value={joinDisplayName}
-              onChange={(e) => setJoinDisplayName(e.target.value)}
-              disabled={isJoining}
-            />
-            <button className="join-btn" type="submit" disabled={isJoining}>
-              {isJoining ? "Đang vào..." : "Tham gia"}
-            </button>
-          </div>
-        </form>
-      )}
 
       <div className="lobby-grid">
         <section className="players-area">
@@ -527,61 +438,44 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             <div className="qp-meta">
               <span>📝 {room?.quiz?.question_count || 10} câu hỏi</span>
               <span>⏱ {room?.quiz?.total_duration_formatted || "~5m 30s"}</span>
-
               <span>🔀 {room?.settings?.shuffle_questions ? "Câu hỏi bị shuffle" : "Câu hỏi không shuffle"}</span>
-              {room?.quiz_id && <span>Quiz ID: {room.quiz_id}</span>}
             </div>
           </div>
 
-          {currentUserInRoom && (
-            <div className="chat-card">
-              <div className="chat-title">
-                💬 Chat phòng <span className="chat-live">LIVE</span>
-              </div>
-              <div className="chat-messages" ref={chatMessagesRef}>
-                {chatMessages.map((message, index) => (
-                  <div
-                    className={`chat-msg-row ${message.userId === user?.id ? "me" : "other"}${message.isHost ? " host" : ""}`}
-                    key={message.id || `${message.name}-${index}`}
-                  >
-                    <div className="chat-msg-bubble">
-                      <div className="chat-msg-meta">
-                        <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
-                        {message.isHost && <span className="chat-host-badge">HOST</span>}
-                      </div>
-                      <div className="chat-msg-text">{message.text}</div>
-                    </div>
-                  </div>
-                ))}
-                {!chatMessages.length && !isLoading && <div className="chat-empty">Chưa có tin nhắn nào.</div>}
-              </div>
-              <form className="chat-input-row" onSubmit={handleSendChat}>
-                <input
-                  className="chat-input"
-                  placeholder="Nhắn gì đó..."
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  disabled={isSendingChat}
-                />
-                <button className="chat-send" type="submit" disabled={isSendingChat}>
-                  ➤
-                </button>
-              </form>
+          <div className="chat-card">
+            <div className="chat-title">
+              💬 Chat phòng <span className="chat-live">LIVE</span>
             </div>
-          )}
+            <div className="chat-messages">
+              {chatMessages.map((message, index) => (
+                <div className="chat-msg" key={`${message.name}-${index}`}>
+                  <span className="chat-msg-name">{message.name}: </span>
+                  {message.text}
+                </div>
+              ))}
+            </div>
+            <form className="chat-input-row" onSubmit={handleSendChat}>
+              <input
+                className="chat-input"
+                placeholder="Nhắn gì đó..."
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+              />
+              <button className="chat-send" type="submit">
+                ➤
+              </button>
+            </form>
+          </div>
 
           {isCurrentUserHost ? (
             <button className="btn-start" onClick={handleStartGame} disabled={isStarting || isPlaying || isLeaving}>
               {isStarting ? "Đang bắt đầu..." : isPlaying ? "Đang chơi" : `🚀 Bắt đầu game! (${displayPlayers.length} người)`}
             </button>
           ) : (
-            <button className="btn-start" disabled>
-              <span className="waiting-hourglass" aria-hidden="true">⌛</span> Chờ host bắt đầu game
+            <button className="btn-start" onClick={handleLeaveRoom} disabled={isLeaving}>
+              {isLeaving ? "Đang rời..." : "👋 Rời phòng"}
             </button>
           )}
-          <button className="btn-leave" onClick={handleLeaveRoom} disabled={isLeaving}>
-            {isLeaving ? "Đang rời phòng..." : "↩ Rời phòng"}
-          </button>
         </aside>
       </div>
     </div>

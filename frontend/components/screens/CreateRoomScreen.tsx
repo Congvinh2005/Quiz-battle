@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { quizService } from "@/services/quizService";
 import { gameService } from "@/services/gameService";
@@ -64,7 +64,7 @@ function toSelectableQuiz(quiz: Quiz, index: number): SelectableQuiz {
 function estimateDuration(totalSeconds: number) {
   if (!totalSeconds) return "~ chưa rõ";
   const minutes = totalSeconds / 60;
-  
+
   if (minutes < 1) {
     return `~${totalSeconds}s`;
   }
@@ -77,10 +77,12 @@ function makePreviewCode(room?: GameRoom | null) {
 
 export default function CreateRoomScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
   const [createdRoom, setCreatedRoom] = useState<GameRoom | null>(null);
+  const [animatedCode, setAnimatedCode] = useState<string>("GX7R2K");
   const [maxPlayers, setMaxPlayers] = useState(30);
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
   const [roomChat, setRoomChat] = useState(true);
@@ -94,7 +96,12 @@ export default function CreateRoomScreen() {
         setError(null);
         const data = await quizService.getAllQuizzes();
         setQuizzes(data);
-        if (data.length > 0) {
+
+        // Kiểm tra quizId từ URL params
+        const quizIdFromUrl = searchParams.get('quizId');
+        if (quizIdFromUrl && data.some(quiz => quiz.id === quizIdFromUrl)) {
+          setSelectedQuizId(quizIdFromUrl);
+        } else if (data.length > 0) {
           setSelectedQuizId(data[0].id);
         } else {
           setSelectedQuizId(demoQuizzes[0].id);
@@ -108,7 +115,23 @@ export default function CreateRoomScreen() {
     };
 
     loadQuizzes();
-  }, []);
+  }, [searchParams]);
+
+  // Animate room code when not yet created
+  useEffect(() => {
+    if (createdRoom) return;
+
+    const interval = setInterval(() => {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      let code = "";
+      for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      setAnimatedCode(code);
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, [createdRoom]);
 
   const selectableQuizzes = useMemo(() => {
     if (quizzes.length > 0) return quizzes.map(toSelectableQuiz);
@@ -238,7 +261,7 @@ export default function CreateRoomScreen() {
                 <div className="setting-toggle-row">
                   <div className="setting-toggle-label">{shuffleQuestions ? "Bật" : "Tắt"}</div>
                   <button
-                    className={`setting-toggle on-green${shuffleQuestions ? " is-on" : ""}`}
+                    className={`setting-toggle${shuffleQuestions ? " on-green is-on" : " is-off"}`}
                     onClick={() => setShuffleQuestions((value) => !value)}
                     aria-label="Bật tắt shuffle câu hỏi"
                   />
@@ -250,7 +273,7 @@ export default function CreateRoomScreen() {
                 <div className="setting-toggle-row">
                   <div className="setting-toggle-label">{roomChat ? "Bật" : "Tắt"}</div>
                   <button
-                    className={`setting-toggle on-accent${roomChat ? " is-on" : ""}`}
+                    className={`setting-toggle${roomChat ? " on-accent is-on" : " is-off"}`}
                     onClick={() => setRoomChat((value) => !value)}
                     aria-label="Bật tắt chat trong phòng"
                   />
@@ -266,13 +289,13 @@ export default function CreateRoomScreen() {
           <div className="preview-title">📋 Preview phòng</div>
           <div className="room-code-preview">
             <div className="room-code-label">Mã phòng</div>
-            <div className="room-code-val">{makePreviewCode(createdRoom)}</div>
-            <div className="room-code-sub">
+            <div className="room-code-val">{createdRoom?.room_code || animatedCode}</div>
+            {/* <div className="room-code-sub">
               {createdRoom ? "Phòng đã tạo, đang vào lobby" : "Chia sẻ mã này cho bạn bè"}
-            </div>
+            </div> */}
           </div>
 
-            <div className="preview-detail">
+          <div className="preview-detail">
             <div className="preview-row">
               <span className="preview-row-label">Quiz</span>
               <span className="preview-row-val">

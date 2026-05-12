@@ -105,5 +105,22 @@ services:
       db:
         condition: service_healthy
 
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: quiz_battle_redisinsight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+    environment:
+      RI_REDIS_HOST_0: redis
+      RI_REDIS_PORT_0: 6379
+      RI_REDIS_ALIAS_0: quiz_battle_redis
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  redisinsight_data:

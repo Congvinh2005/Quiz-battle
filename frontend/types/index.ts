@@ -93,6 +93,28 @@ export interface GameRoom {
   player_count?: number;
 }
 
+export interface GameStateSnapshot {
+  status: GameStatus;
+  current_question_order: number;
+  current_question: Question | null;
+  total_questions: number;
+  leaderboard: Array<{
+    rank: number;
+    user_id: string;
+    display_name: string;
+    score: number;
+  }>;
+}
+
+export interface RoomStateResponse {
+  room: GameRoom;
+  quiz: QuizPreview;
+  players: RoomPlayer[];
+  player_count: number;
+  settings: RoomSettings;
+  game_state: GameStateSnapshot;
+}
+
 export interface RoomPlayer {
   id: string;
   room_id: string;
@@ -124,6 +146,7 @@ export interface GameResult {
   id: string;
   room_id: string;
   user_id: string;
+  display_name?: string;
   final_score: number;
   rank: number;
   created_at: string;
@@ -173,6 +196,7 @@ export interface WSRoomEvent {
   type:
     | "PLAYER_JOINED"
     | "PLAYER_LEFT"
+    | "ROOM_CLOSED"
     | "GAME_STARTED"
     | "QUESTION_CHANGED"
     | "ANSWER_SUBMITTED"

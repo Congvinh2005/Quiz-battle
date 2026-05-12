@@ -63,6 +63,21 @@ export const gameService = {
     return response.data;
   },
 
+  // Get room leaderboard
+  getLeaderboard: async (roomCode: string): Promise<any> => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("access_token")
+        : null;
+    const response = await apiClient.get<any>(
+      `/rooms/${roomCode}/leaderboard`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      },
+    );
+    return response.data;
+  },
+
   // Join room
   joinRoom: async (
     roomCode: string,
@@ -189,21 +204,6 @@ export const gameService = {
         : null;
     const response = await apiClient.get<GameResult[]>(
       `/rooms/${roomCode}/results`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      },
-    );
-    return response.data;
-  },
-
-  // Get room leaderboard
-  getLeaderboard: async (roomCode: string): Promise<any> => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("access_token")
-        : null;
-    const response = await apiClient.get<any>(
-      `/rooms/${roomCode}/leaderboard`,
       {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       },
