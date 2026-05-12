@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useEffect, useMemo, useState, useRef } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameService } from "@/services/gameService";
 import { wsService } from "@/services/websocketService";
@@ -18,6 +18,9 @@ interface AnswerOption {
 }
 
 interface ChatLine {
+  id?: string;
+  userId?: string;
+  isHost?: boolean;
   name: string;
   text: string;
 }
@@ -108,6 +111,36 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const rankFlashTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [rankFlashingUserIds, setRankFlashingUserIds] = useState<string[]>([]);
   const questionLoadRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatMessagesRef = useRef<HTMLDivElement | null>(null);
+  const getErrorMessage = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
+  const hostUserId = roomState?.room?.host_id || null;
+  const toChatLine = useCallback((message: any): ChatLine => {
+    const userId = message?.user_id || message?.user?.id;
+    return {
+      id: message?.id,
+      userId,
+      isHost: !!(hostUserId && userId && String(userId) === String(hostUserId)),
+      name: message?.user?.username || message?.name || "Người chơi",
+      text: message?.message || message?.text || "",
+    };
+  }, [hostUserId]);
+  const mergeChatMessages = useCallback((current: ChatLine[], incoming: ChatLine[]) => {
+    if (!incoming.length) return current;
+
+    const existingIds = new Set(current.map((message) => message.id).filter(Boolean));
+    const appended = incoming.filter((message) => {
+      if (!message.id) return true;
+      return !existingIds.has(message.id);
+    });
+
+    if (!appended.length) return current;
+    return [...current, ...appended];
+  }, []);
+
+  useEffect(() => {
+    if (!chatMessagesRef.current) return;
+    chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+  }, [chatMessages.length]);
 
   const refreshRoomState = async () => {
     const state = await gameService.getRoomState(roomCode);
@@ -140,10 +173,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           gameService.getChatMessages(roomCode),
         ]);
         setChatMessages(
-          messages.map((message) => ({
-            name: message.user?.username || "Người chơi",
-            text: message.message,
-          }))
+          messages.map((message) => toChatLine(message))
         );
 
         // Track when question started for response time
@@ -179,7 +209,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     timerIntervalRef.current = setInterval(() => {
       setTimeRemaining((prevTime) => {
         const newTime = Math.max(0, prevTime - 1);
-        
+
         // When timer reaches 0, auto-advance to next question
         if (newTime === 0 && !autoAdvanceTriggeredRef.current) {
           autoAdvanceTriggeredRef.current = true;
@@ -193,7 +223,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
             void handleNextQuestion();
           }
         }
-        
+
         return newTime;
       });
     }, 1000);
@@ -306,11 +336,23 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handleChatMessage = (data: any) => {
-      if (data?.user?.username && data?.message) {
-        setChatMessages(prev => [...prev, {
-          name: data.user.username,
-          text: data.message,
-        }]);
+      if (data?.message) {
+        setChatMessages((prev) => {
+          const incomingId = typeof data?.id === "string" ? data.id : undefined;
+          if (incomingId && prev.some((msg) => msg.id === incomingId)) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            toChatLine({
+              id: incomingId,
+              user_id: data?.user_id,
+              user: data?.user,
+              message: data.message,
+            }),
+          ];
+        });
       }
     };
 
@@ -345,7 +387,26 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         timerIntervalRef.current = null;
       }
     };
-  }, [roomCode, router]);
+  }, [roomCode, router, toChatLine]);
+
+  useEffect(() => {
+    if (!roomCode) return;
+
+    const syncTimer = setInterval(async () => {
+      try {
+        const latest = await gameService.getChatMessages(roomCode);
+        const mapped: ChatLine[] = latest.map((message) => toChatLine(message));
+
+        setChatMessages((prev) => mergeChatMessages(prev, mapped));
+      } catch {
+        // Keep silent: websocket remains primary channel.
+      }
+    }, 1500);
+
+    return () => {
+      clearInterval(syncTimer);
+    };
+  }, [roomCode, mergeChatMessages, toChatLine]);
 
   const currentQuestion = roomState?.game_state.current_question;
   const answers: AnswerOption[] = useMemo(() => {
@@ -533,10 +594,20 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
     try {
       setIsSendingChat(true);
-      await gameService.postChatMessage(roomCode, { message: text });
+      setError(null);
+      const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
+      if (!accessToken) {
+        throw new Error("Thiếu access token để gửi chat realtime.");
+      }
+
+      if (!wsService.isConnected()) {
+        await wsService.connect(accessToken, roomCode);
+      }
+
+      wsService.emit("CHAT_MESSAGE", { message: text });
       setChatInput("");
-      // Chat message will be added via WebSocket listener
     } catch (err) {
+      setError(getErrorMessage(err, "Không gửi được tin nhắn. Vui lòng thử lại."));
       console.error("Failed to send chat:", err);
     } finally {
       setIsSendingChat(false);
@@ -561,14 +632,14 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           <div className="timer-circle">
             <svg className="timer-svg" width="52" height="52" viewBox="0 0 52 52">
               <circle className="timer-track" cx="26" cy="26" r="20" />
-              <circle 
-                className="timer-fill" 
-                cx="26" 
-                cy="26" 
-                r="20" 
-                style={{ 
+              <circle
+                className="timer-fill"
+                cx="26"
+                cy="26"
+                r="20"
+                style={{
                   strokeDashoffset: 125.6 * (1 - timeRemaining / (currentQuestion?.time_limit || 30))
-                }} 
+                }}
               />
             </svg>
             <div className="timer-num">{timeRemaining}</div>
@@ -604,14 +675,22 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           <div className="chat-title">
             💬 Chat phòng <span className="chat-live">LIVE</span>
           </div>
-          <div className="chat-messages">
+          <div className="chat-messages" ref={chatMessagesRef}>
             {chatMessages.map((message, index) => (
-              <div className="chat-msg" key={`${message.name}-${index}`}>
-                <span className="chat-msg-name">{message.name}: </span>
-                {message.text}
+              <div
+                className={`chat-msg-row ${message.userId === user?.id ? "me" : "other"}${message.isHost ? " host" : ""}`}
+                key={message.id || `${message.name}-${index}`}
+              >
+                <div className="chat-msg-bubble">
+                  <div className="chat-msg-meta">
+                    <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
+                    {message.isHost && <span className="chat-host-badge">HOST</span>}
+                  </div>
+                  <div className="chat-msg-text">{message.text}</div>
+                </div>
               </div>
             ))}
-              {!chatMessages.length && !isLoading && <div className="chat-msg">Chưa có tin nhắn nào.</div>}
+            {!chatMessages.length && !isLoading && <div className="chat-empty">Chưa có tin nhắn nào.</div>}
           </div>
           <form className="chat-input-row" onSubmit={handleSendChat}>
             <input
@@ -637,13 +716,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           <div className="answers-grid">
             {answers.map((answer) => (
               <button
-                className={`answer-btn${
-                  !isAnswerSubmitted && selectedAnswer === answer.id ? " selected" : ""
-                }${
-                  isAnswerSubmitted && answerFeedback?.correctOptionId === answer.id ? " correct" : ""
-                }${
-                  isAnswerSubmitted && selectedAnswer === answer.id && !answerFeedback?.isCorrect ? " wrong" : ""
-                }${isAnswerSubmitted ? " submitted" : ""}`}
+                className={`answer-btn${!isAnswerSubmitted && selectedAnswer === answer.id ? " selected" : ""
+                  }${isAnswerSubmitted && answerFeedback?.correctOptionId === answer.id ? " correct" : ""
+                  }${isAnswerSubmitted && selectedAnswer === answer.id && !answerFeedback?.isCorrect ? " wrong" : ""
+                  }${isAnswerSubmitted ? " submitted" : ""}`}
                 key={answer.id}
                 onClick={() => handleSelectAnswer(answer.id)}
                 disabled={isLoading || isAnswerSubmitted || isSubmittingAnswer || roomStatus !== "PLAYING"}
