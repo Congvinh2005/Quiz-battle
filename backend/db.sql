@@ -64,6 +64,10 @@ CREATE TABLE game_rooms (
     host_id UUID REFERENCES users(id) ON DELETE SET NULL,
     quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
     status VARCHAR(20) CHECK (status IN ('WAITING', 'PLAYING', 'FINISHED')),
+    max_players INT NOT NULL DEFAULT 30,
+    shuffle_questions BOOLEAN NOT NULL DEFAULT TRUE,
+    chat_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    current_question_order INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT NOW(),
     started_at TIMESTAMP,
     ended_at TIMESTAMP

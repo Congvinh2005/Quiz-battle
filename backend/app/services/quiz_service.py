@@ -1,0 +1,207 @@
+from uuid import UUID
+
+from fastapi import HTTPException, status
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.models.quiz.answer_options import AnswerOption
+from app.models.quiz.questions import Question
+from app.models.quiz.quizzes import Quiz
+
+
+def _serialize_quiz_summary(quiz: Quiz, question_count: int, time_limit_sum: int) -> dict:
+	total_duration_seconds = int(time_limit_sum or 0) + (int(question_count or 0) * 3)
+	return {
+		"id": str(quiz.id),
+		"title": quiz.title,
+		"description": quiz.description,
+		"is_public": quiz.is_public,
+		"created_by": str(quiz.created_by) if quiz.created_by else None,
+		"question_count": int(question_count or 0),
+		"total_duration_seconds": total_duration_seconds,
+	}
+
+
+def _serialize_quiz_detail(quiz: Quiz) -> dict:
+	questions = []
+	for question in quiz.questions:
+		answer_options = []
+		for option in question.answer_options:
+			answer_options.append(
+				{
+					"id": str(option.id),
+					"content": option.content,
+					"is_correct": option.is_correct,
+				}
+			)
+		questions.append(
+			{
+				"id": str(question.id),
+				"content": question.content,
+				"question_type": question.question_type,
+				"time_limit": question.time_limit,
+				"points": question.points,
+				"order_index": question.order_index,
+				"answer_options": answer_options,
+			}
+		)
+
+	return {
+		"id": str(quiz.id),
+		"title": quiz.title,
+		"description": quiz.description,
+		"is_public": quiz.is_public,
+		"created_by": str(quiz.created_by) if quiz.created_by else None,
+		"questions": questions,
+	}
+
+
+def list_quizzes(db: Session, current_user: UUID) -> list:
+	quizzes = (
+		db.query(
+			Quiz,
+			func.count(Question.id).label("question_count"),
+			func.coalesce(func.sum(Question.time_limit), 0).label("time_limit_sum"),
+		)
+		.outerjoin(Question, Question.quiz_id == Quiz.id)
+		.filter((Quiz.created_by == current_user) | (Quiz.is_public.is_(True)))
+		.group_by(Quiz.id)
+		.all()
+	)
+
+	return [_serialize_quiz_summary(quiz, question_count, time_limit_sum) for quiz, question_count, time_limit_sum in quizzes]
+
+
+def get_quiz_detail(quiz_id: UUID, current_user: UUID, db: Session) -> dict:
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	if not quiz:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
+
+	if quiz.created_by != current_user and not quiz.is_public:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this quiz")
+
+	return _serialize_quiz_detail(quiz)
+
+
+def create_quiz_with_questions(payload: dict, current_user: UUID, db: Session) -> dict:
+	title = payload.get("title")
+	if not title:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing title")
+
+	quiz = Quiz(
+		title=title,
+		description=payload.get("description"),
+		is_public=payload.get("is_public", False),
+		created_by=current_user,
+	)
+	db.add(quiz)
+	db.commit()
+	db.refresh(quiz)
+
+	questions_data = payload.get("questions", [])
+	if questions_data:
+		try:
+			for question_payload in questions_data:
+				question = Question(
+					quiz_id=quiz.id,
+					content=question_payload.get("content"),
+					question_type=question_payload.get("question_type"),
+					time_limit=question_payload.get("time_limit"),
+					points=question_payload.get("points", 100),
+					order_index=question_payload.get("order_index"),
+				)
+				db.add(question)
+				db.flush()
+
+				for option_payload in question_payload.get("answer_options", []):
+					option = AnswerOption(
+						question_id=question.id,
+						content=option_payload.get("content"),
+						is_correct=option_payload.get("is_correct", False),
+					)
+					db.add(option)
+
+			db.commit()
+		except Exception:
+			db.rollback()
+			raise
+
+	db.refresh(quiz)
+	return {
+		"id": str(quiz.id),
+		"title": quiz.title,
+		"description": quiz.description,
+		"is_public": quiz.is_public,
+		"created_by": str(quiz.created_by) if quiz.created_by else None,
+	}
+
+
+def update_quiz_with_questions(quiz_id: UUID, payload: dict, current_user: UUID, db: Session) -> dict:
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	if not quiz:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
+
+	if quiz.created_by != current_user:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to edit this quiz")
+
+	title = payload.get("title")
+	if not title:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing title")
+
+	quiz.title = title
+	quiz.description = payload.get("description")
+	quiz.is_public = payload.get("is_public", False)
+
+	questions_data = payload.get("questions", [])
+	if questions_data:
+		try:
+			db.query(Question).filter(Question.quiz_id == quiz_id).delete(synchronize_session=False)
+			db.flush()
+
+			for question_payload in questions_data:
+				question = Question(
+					quiz_id=quiz_id,
+					content=question_payload.get("content"),
+					question_type=question_payload.get("question_type"),
+					time_limit=question_payload.get("time_limit"),
+					points=question_payload.get("points", 100),
+					order_index=question_payload.get("order_index"),
+				)
+				db.add(question)
+				db.flush()
+
+				for option_payload in question_payload.get("answer_options", []):
+					option = AnswerOption(
+						question_id=question.id,
+						content=option_payload.get("content"),
+						is_correct=option_payload.get("is_correct", False),
+					)
+					db.add(option)
+
+			db.commit()
+		except Exception:
+			db.rollback()
+			raise
+	else:
+		db.commit()
+
+	db.refresh(quiz)
+	return {
+		"id": str(quiz.id),
+		"title": quiz.title,
+		"description": quiz.description,
+		"is_public": quiz.is_public,
+		"created_by": str(quiz.created_by) if quiz.created_by else None,
+	}
+
+
+def delete_quiz(quiz_id: UUID, current_user: UUID, db: Session) -> None:
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	if not quiz:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
+
+	if quiz.created_by != current_user:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete this quiz")
+
+	db.delete(quiz)
+	db.commit()

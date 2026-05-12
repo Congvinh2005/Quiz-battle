@@ -4,7 +4,12 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class Question(BaseModel):
+    """
+    Quiz question - domain: QUIZ CONTENT MANAGEMENT
+    Individual question with metadata (time limit, points, order)
+    """
     __tablename__ = "questions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)

@@ -15,12 +15,15 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     tokens = create_tokens(db, user.id)
 
     return {
-        "user": UserResponse.from_orm(user).dict(),
-        "tokens": TokenResponse(
-            access_token=tokens["access_token"],
-            refresh_token=tokens["refresh_token"],
-            expires_in=tokens["expires_in"]
-        ).dict()
+        "user": UserResponse.from_orm(user).dict()  
+    
+        #"tokens": TokenResponse(
+           # access_token=tokens["access_token"],
+           # refresh_token=tokens["refresh_token"],
+           # expires_in=tokens["expires_in"]
+        #).dict()
+        
+        
     }
 
 @router.post("/login", response_model=TokenResponse)

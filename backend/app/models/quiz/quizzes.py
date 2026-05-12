@@ -4,7 +4,12 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class Quiz(BaseModel):
+    """
+    Quiz template - domain: QUIZ CONTENT MANAGEMENT
+    Reusable quiz container that holds questions and can be used in multiple game rooms
+    """
     __tablename__ = "quizzes"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)

@@ -4,7 +4,13 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.db.base_class import BaseModel
 
+
 class GameQuestion(BaseModel):
+    """
+    Question sequence in game room - domain: GAME PLAY MANAGEMENT
+    Maps abstract questions to specific game instance with ordering
+    Prevents duplicate question_order per room
+    """
     __tablename__ = "game_questions"
     __table_args__ = (UniqueConstraint('room_id', 'question_order', name='uq_room_question_order'),)
 

@@ -1,3 +1,41 @@
+<<<<<<< HEAD
 .gitignore
 __pycache__/
 *.pyc
+=======
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Pytest / mypy / coverage
+.pytest_cache/
+.mypy_cache/
+.cache/
+.coverage
+htmlcov/
+
+# RedisInsight data (if ever created locally inside backend)
+redisinsight_data/
+
+# Editor/OS files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+>>>>>>> origin/anthai
