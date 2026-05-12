@@ -26,10 +26,20 @@ export default function Navigation() {
   const isRoomPage = pathname.startsWith("/room/");
   const isGamePage = pathname.startsWith("/game/");
   const isResultsPage = pathname.startsWith("/results/");
+  const isEditorPage = pathname === "/editor";
+  const isEditQuizPage = pathname.startsWith("/editor/");
+  const editQuizId = isEditQuizPage ? pathname.split("/")[2] : null;
 
   const navItems = [
     { href: "/dashboard", label: "🏠 Dashboard", active: pathname === "/dashboard" },
-    { href: "/editor", label: "✏️ Tạo Quiz", active: pathname === "/editor" },
+    {
+      href: "/editor",
+      label: "✏️ Tạo Quiz",
+      active: isEditorPage,
+    },
+    ...(isEditQuizPage && editQuizId
+      ? [{ href: `/editor/${editQuizId}`, label: "✏️ Sửa Quiz", active: true }]
+      : []),
     { href: "/create-room", label: "🎮 Tạo phòng", active: pathname === "/create-room" },
     ...(activeRoomCode && isRoomPage
       ? [{ href: `/room/${activeRoomCode}`, label: "👥 Lobby", active: true }]
