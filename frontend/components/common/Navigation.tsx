@@ -21,13 +21,25 @@ export default function Navigation() {
     return null;
   }
 
+  const roomMatch = pathname.match(/^\/(room|game|results)\/([^/]+)/);
+  const activeRoomCode = roomMatch?.[2] || null;
+  const isRoomPage = pathname.startsWith("/room/");
+  const isGamePage = pathname.startsWith("/game/");
+  const isResultsPage = pathname.startsWith("/results/");
+
   const navItems = [
     { href: "/dashboard", label: "🏠 Dashboard", active: pathname === "/dashboard" },
     { href: "/editor", label: "✏️ Tạo Quiz", active: pathname === "/editor" },
     { href: "/create-room", label: "🎮 Tạo phòng", active: pathname === "/create-room" },
-    { href: "/room/demo", label: "👥 Lobby", active: pathname.startsWith("/room/") },
-    { href: "/game/demo", label: "⚡ Gameplay", active: pathname.startsWith("/game/") },
-    { href: "/results/demo", label: "🏆 Kết quả", active: pathname.startsWith("/results/") },
+    ...(activeRoomCode && isRoomPage
+      ? [{ href: `/room/${activeRoomCode}`, label: "👥 Lobby", active: true }]
+      : []),
+    ...(activeRoomCode && isGamePage
+      ? [{ href: `/game/${activeRoomCode}`, label: "⚡ Gameplay", active: true }]
+      : []),
+    ...(activeRoomCode && isResultsPage
+      ? [{ href: `/results/${activeRoomCode}`, label: "🏆 Kết quả", active: true }]
+      : []),
   ];
 
   return (

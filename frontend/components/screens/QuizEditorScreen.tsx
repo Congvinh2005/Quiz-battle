@@ -212,7 +212,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
         return;
       }
 
-      router.push(`/editor/${savedQuiz.id}`);
+      alert(`Đã sửa quiz "${savedQuiz.title}" thành công!`);
+              router.push("/dashboard");
+
     } catch (error) {
       console.error("Failed to save quiz:", error);
       alert("Lưu quiz thất bại. Vui lòng thử lại.");
@@ -267,7 +269,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
         <div className="editor-sidebar-actions">
           <button className="btn-save" style={{ width: "100%" }} onClick={handleSaveQuiz} disabled={isSaving}>
-            {isSaving ? "Đang lưu..." : "💾 Lưu"}
+            {isSaving ? "Đang lưu..." : quizId ? "Cập nhật sửa" : "💾 Lưu"}
           </button>
           <button className="btn-publish" style={{ width: "100%" }} onClick={() => router.push("/create-room")}>
             🚀 Lưu & Chơi
