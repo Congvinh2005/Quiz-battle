@@ -48,10 +48,11 @@
 }
 
 .players-area {
-  background: var(--surface2);
+  background: #ffffff;
   border: 1px solid var(--border2);
   border-radius: 20px;
   padding: 24px;
+  box-shadow: 0 24px 50px rgba(124, 58, 237, 0.12);
 }
 
 .players-area-header {
@@ -95,12 +96,13 @@
 }
 
 .player-chip {
-  background: var(--surface);
+  background: #ffffff;
   border: 1px solid var(--border2);
   border-radius: 12px;
   padding: 12px;
   text-align: center;
   transition: all 0.3s;
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.10);
 }
 
 .player-chip.host {
@@ -151,10 +153,11 @@
 }
 
 .quiz-preview-card {
-  background: var(--surface2);
+  background: #ffffff;
   border: 1px solid var(--border2);
   border-radius: 16px;
   padding: 20px;
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.08);
 }
 
 .qp-icon {
@@ -178,11 +181,12 @@
 }
 
 .chat-card {
-  background: var(--surface2);
+  background: #ffffff;
   border: 1px solid var(--border2);
   border-radius: 16px;
   padding: 16px;
   flex: 1;
+  box-shadow: 0 24px 60px rgba(124, 58, 237, 0.12);
 }
 
 .chat-title {

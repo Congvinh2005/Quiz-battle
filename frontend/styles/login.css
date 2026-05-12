@@ -14,7 +14,7 @@
   padding: 10px 14px;
   border-radius: var(--pill);
   border: 1px solid var(--border2);
-  background: rgba(18, 18, 26, 0.72);
+  background: rgba(255, 255, 255, 0.85);
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
@@ -71,9 +71,12 @@
   display: flex; flex-direction: column; gap: 12px; padding: 20px;
 }
 .demo-card {
-  background: rgba(26,26,38,0.85); backdrop-filter: blur(20px);
-  border: 1px solid var(--border2); border-radius: var(--card-radius);
+  background: #ffffff;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 58, 237, 0.14);
+  border-radius: var(--card-radius);
   padding: 16px 20px; min-width: 260px;
+  box-shadow: 0 24px 60px rgba(124, 58, 237, 0.14);
 }
 .demo-card-title {
   font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
@@ -100,7 +103,7 @@
 .nav-tab {
   padding:6px 14px; border-radius:var(--pill); font-size:13px;
   font-family:'DM Sans',sans-serif; font-weight:500;
-  cursor:pointer; border:none; background:transparent; color:var(--muted); transition:all .2s;
+  cursor:pointer; border:1px solid rgba(124, 58, 237, 0.15); background:rgba(124, 58, 237, 0.05); color:var(--muted); transition:all .2s;
 }
-.nav-tab.active { background:var(--surface2); color:var(--text); border:1px solid var(--border2); }
-.nav-tab:hover:not(.active) { color:var(--text); }
+.nav-tab.active { background:#ffffff; color:var(--text); border:1.5px solid rgba(124, 58, 237, 0.35); }
+.nav-tab:hover:not(.active) { color:var(--text); border-color:rgba(124, 58, 237, 0.25); background:rgba(124, 58, 237, 0.08); }

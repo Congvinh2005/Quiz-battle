@@ -15,7 +15,7 @@ export default function Layout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-dark-bg text-text-main antialiased">
+      <body style={{ background: "var(--bg)", color: "var(--text)" }} className="antialiased">
         <RootLayout>{children}</RootLayout>
       </body>
     </html>

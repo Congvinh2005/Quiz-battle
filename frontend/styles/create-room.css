@@ -18,10 +18,11 @@
 }
 
 .step-card {
-  background: var(--surface2);
+  background: #ffffff;
   border: 1px solid var(--border2);
   border-radius: 20px;
   padding: 24px;
+  box-shadow: 0 24px 50px rgba(124, 58, 237, 0.12);
 }
 
 .step-badge {
@@ -62,7 +63,7 @@
   align-items: center;
   gap: 14px;
   padding: 14px;
-  background: var(--surface);
+  background: #ffffff;
   border: 2px solid transparent;
   border-radius: 12px;
   cursor: pointer;
@@ -71,16 +72,17 @@
   text-align: left;
   width: 100%;
   font-family: "DM Sans", sans-serif;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
 }
 
 .quiz-select-item:hover {
   border-color: var(--primary);
-  background: rgba(124, 58, 237, 0.05);
+  background: rgba(124, 58, 237, 0.08);
 }
 
 .quiz-select-item.selected {
   border-color: var(--primary);
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(124, 58, 237, 0.16);
 }
 
 .quiz-icon {
@@ -139,10 +141,11 @@
 }
 
 .setting-item {
-  background: var(--surface);
+  background: #ffffff;
   border: 1px solid var(--border2);
   border-radius: 10px;
   padding: 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
 }
 
 .setting-label {
@@ -171,7 +174,7 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: var(--surface2);
+  background: #eff4ff;
   border: 1px solid var(--border2);
   color: var(--text);
   font-size: 16px;
@@ -218,8 +221,9 @@
   border-radius: var(--pill);
   border: none;
   position: relative;
+  background: #dee9fc;
   cursor: pointer;
-  background: var(--border2);
+  transition: all 0.2s;
 }
 
 .setting-toggle.on-primary {
@@ -251,13 +255,14 @@
 }
 
 .preview-card {
-  background: var(--surface2);
-  border: 1px solid var(--border2);
+  background: #ffffff;
+  border: 1.5px solid rgba(124, 58, 237, 0.25);
   border-radius: 20px;
   padding: 24px;
   position: sticky;
   top: 70px;
   align-self: start;
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.10);
 }
 
 .preview-title {
@@ -265,6 +270,7 @@
   font-size: 15px;
   font-weight: 700;
   margin-bottom: 20px;
+  color: var(--text);
 }
 
 .room-code-preview {
@@ -280,8 +286,9 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  opacity: 0.7;
+  opacity: 0.8;
   margin-bottom: 8px;
+  color: #ffffff;
 }
 
 .room-code-val {
@@ -289,12 +296,14 @@
   font-size: 36px;
   font-weight: 700;
   letter-spacing: 0.2em;
+  color: #ffffff;
 }
 
 .room-code-sub {
   font-size: 11px;
-  opacity: 0.7;
+  opacity: 0.8;
   margin-top: 6px;
+  color: #ffffff;
 }
 
 .preview-detail {
@@ -318,6 +327,7 @@
 .preview-row-val {
   font-weight: 600;
   text-align: right;
+  color: var(--text);
 }
 
 .btn-create {
