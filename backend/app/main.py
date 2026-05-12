@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.api.v1.api import api_router
+from app.websockets.game_socket import router as websocket_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -28,6 +29,7 @@ def startup():
 
 # Include routers
 app.include_router(api_router)
+app.include_router(websocket_router)
 
 @app.get("/")
 def read_root():

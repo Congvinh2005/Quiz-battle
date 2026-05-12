@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import RootLayout from "@/components/layouts/RootLayout";
-import "@/styles/globals.css";
+require("../styles/globals.css");
+
 
 export const metadata: Metadata = {
   title: "Quiz Battle - Real-time Quiz Platform",
