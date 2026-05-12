@@ -104,6 +104,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const [timeRemaining, setTimeRemaining] = useState<number>(30);
   const [timerActive, setTimerActive] = useState<boolean>(true);
   const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
+  const [shakingAnswerId, setShakingAnswerId] = useState<string | null>(null);
   const questionStartTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoAdvanceTriggeredRef = useRef(false);
@@ -112,7 +113,42 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const [rankFlashingUserIds, setRankFlashingUserIds] = useState<string[]>([]);
   const questionLoadRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
+  const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getErrorMessage = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
+
+  const playFeedbackSound = useCallback((isCorrect: boolean) => {
+    if (typeof window === "undefined") return;
+
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const context = new AudioCtx();
+    const now = context.currentTime;
+    const notes = isCorrect ? [660, 880] : [220, 165];
+
+    notes.forEach((freq, index) => {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+
+      osc.type = isCorrect ? "triangle" : "sawtooth";
+      osc.frequency.setValueAtTime(freq, now + index * 0.09);
+
+      gain.gain.setValueAtTime(0.0001, now + index * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + index * 0.09 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.09 + 0.12);
+
+      osc.connect(gain);
+      gain.connect(context.destination);
+
+      osc.start(now + index * 0.09);
+      osc.stop(now + index * 0.09 + 0.13);
+    });
+
+    // Close audio context after playback to avoid leaking resources.
+    setTimeout(() => {
+      void context.close().catch(() => undefined);
+    }, 350);
+  }, []);
   const hostUserId = roomState?.room?.host_id || null;
   const toChatLine = useCallback((message: any): ChatLine => {
     const userId = message?.user_id || message?.user?.id;
@@ -367,6 +403,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     });
 
     return () => {
+      if (shakeTimeoutRef.current) {
+        clearTimeout(shakeTimeoutRef.current);
+        shakeTimeoutRef.current = null;
+      }
       if (questionLoadRetryRef.current) {
         clearTimeout(questionLoadRetryRef.current);
         questionLoadRetryRef.current = null;
@@ -484,6 +524,21 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         correctOptionId: result.correct_option_id ?? null,
         pointsEarned: result.points_earned,
       });
+      playFeedbackSound(result.is_correct);
+
+      if (!result.is_correct) {
+        setShakingAnswerId(selectedOptionId);
+        if (navigator.vibrate) {
+          navigator.vibrate(120);
+        }
+        if (shakeTimeoutRef.current) {
+          clearTimeout(shakeTimeoutRef.current);
+        }
+        shakeTimeoutRef.current = setTimeout(() => {
+          setShakingAnswerId(null);
+          shakeTimeoutRef.current = null;
+        }, 420);
+      }
 
       if (result?.leaderboard?.length) {
         setRoomState((prev) => {
@@ -719,6 +774,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
                 className={`answer-btn${!isAnswerSubmitted && selectedAnswer === answer.id ? " selected" : ""
                   }${isAnswerSubmitted && answerFeedback?.correctOptionId === answer.id ? " correct" : ""
                   }${isAnswerSubmitted && selectedAnswer === answer.id && !answerFeedback?.isCorrect ? " wrong" : ""
+                  }${shakingAnswerId === answer.id ? " shake" : ""
                   }${isAnswerSubmitted ? " submitted" : ""}`}
                 key={answer.id}
                 onClick={() => handleSelectAnswer(answer.id)}

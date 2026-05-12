@@ -315,7 +315,7 @@
   width: 100%;
   padding: 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--green), #059669);
+  background: linear-gradient(135deg, var(--green), #29795f);
   border: none;
   color: #fff;
   font-size: 15px;
@@ -326,19 +326,48 @@
 }
 
 .btn-start:disabled {
-  background: linear-gradient(135deg, var(--green), #059669);
+  background: #094633;
   box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
   opacity: 1;
   cursor: not-allowed;
+}
+
+.waiting-hourglass {
+  display: inline-block;
+  margin-right: 6px;
+  transform-origin: center;
+  animation: hourglass-flip 1.2s ease-in-out infinite;
+}
+
+@keyframes hourglass-flip {
+  0% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  45% {
+    transform: rotate(0deg) translateY(-1px);
+  }
+
+  50% {
+    transform: rotate(180deg) translateY(1px);
+  }
+
+  95% {
+    transform: rotate(180deg) translateY(0);
+  }
+
+  100% {
+    transform: rotate(360deg) translateY(0);
+  }
 }
 
 .btn-leave {
   width: 100%;
   padding: 12px;
   border-radius: 12px;
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(255, 0, 0, 0.782);
   border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   font-family: "DM Sans", sans-serif;

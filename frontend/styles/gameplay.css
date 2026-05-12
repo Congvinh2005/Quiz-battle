@@ -159,12 +159,10 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--primary),
-    var(--accent),
-    var(--gold)
-  );
+  background: linear-gradient(90deg,
+      var(--primary),
+      var(--accent),
+      var(--gold));
 }
 
 .question-num {
@@ -225,6 +223,36 @@
 .answer-btn.wrong {
   border-color: var(--red);
   background: rgba(239, 68, 68, 0.1);
+}
+
+.answer-btn.shake {
+  animation: wrongAnswerShake 0.42s ease;
+}
+
+@keyframes wrongAnswerShake {
+  0% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-6px);
+  }
+
+  40% {
+    transform: translateX(6px);
+  }
+
+  60% {
+    transform: translateX(-4px);
+  }
+
+  80% {
+    transform: translateX(4px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .answer-letter {
@@ -346,11 +374,13 @@
     transform: translateX(0);
     background: rgba(124, 58, 237, 0.12);
   }
+
   45% {
     transform: translateX(3px);
     background: rgba(14, 165, 233, 0.14);
     border-color: rgba(14, 165, 233, 0.45);
   }
+
   100% {
     transform: translateX(0);
   }
@@ -396,7 +426,7 @@
     grid-template-columns: minmax(0, 1fr) 260px;
   }
 
-  .game-body > .chat-card {
+  .game-body>.chat-card {
     grid-column: 1 / -1;
     order: 3;
   }

@@ -343,7 +343,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const handleSendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = chatInput.trim();
-    if (!text || !roomCode) return;
+    if (!currentUserInRoom || !text || !roomCode) return;
 
     try {
       setIsSendingChat(true);
@@ -369,15 +369,27 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
   const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!joinDisplayName.trim()) {
+    const normalizedJoinDisplayName = joinDisplayName.trim();
+    if (!normalizedJoinDisplayName) {
       setError("Vui lòng nhập tên hiển thị.");
+      return;
+    }
+
+    const normalizedTargetName = normalizedJoinDisplayName.toLowerCase();
+    const duplicatedName = players.some(
+      (player) => player.display_name.trim().toLowerCase() === normalizedTargetName
+    );
+
+    if (duplicatedName) {
+      const duplicateNameMessage = "tên đã tồn tại trong phòng";
+      setError(duplicateNameMessage);
       return;
     }
 
     try {
       setIsJoining(true);
       setError(null);
-      await gameService.joinRoom(displayRoomCode, joinDisplayName);
+      await gameService.joinRoom(displayRoomCode, normalizedJoinDisplayName);
       // Refresh players list after joining
       const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
       setPlayers(updatedPlayers);
@@ -468,7 +480,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
               disabled={isJoining}
             />
             <button className="join-btn" type="submit" disabled={isJoining}>
-              {isJoining ? "Đang vào..." : "✓ Vào phòng"}
+              {isJoining ? "Đang vào..." : "Tham gia"}
             </button>
           </div>
         </form>
@@ -521,40 +533,42 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             </div>
           </div>
 
-          <div className="chat-card">
-            <div className="chat-title">
-              💬 Chat phòng <span className="chat-live">LIVE</span>
-            </div>
-            <div className="chat-messages" ref={chatMessagesRef}>
-              {chatMessages.map((message, index) => (
-                <div
-                  className={`chat-msg-row ${message.userId === user?.id ? "me" : "other"}${message.isHost ? " host" : ""}`}
-                  key={message.id || `${message.name}-${index}`}
-                >
-                  <div className="chat-msg-bubble">
-                    <div className="chat-msg-meta">
-                      <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
-                      {message.isHost && <span className="chat-host-badge">HOST</span>}
+          {currentUserInRoom && (
+            <div className="chat-card">
+              <div className="chat-title">
+                💬 Chat phòng <span className="chat-live">LIVE</span>
+              </div>
+              <div className="chat-messages" ref={chatMessagesRef}>
+                {chatMessages.map((message, index) => (
+                  <div
+                    className={`chat-msg-row ${message.userId === user?.id ? "me" : "other"}${message.isHost ? " host" : ""}`}
+                    key={message.id || `${message.name}-${index}`}
+                  >
+                    <div className="chat-msg-bubble">
+                      <div className="chat-msg-meta">
+                        <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
+                        {message.isHost && <span className="chat-host-badge">HOST</span>}
+                      </div>
+                      <div className="chat-msg-text">{message.text}</div>
                     </div>
-                    <div className="chat-msg-text">{message.text}</div>
                   </div>
-                </div>
-              ))}
-              {!chatMessages.length && !isLoading && <div className="chat-empty">Chưa có tin nhắn nào.</div>}
+                ))}
+                {!chatMessages.length && !isLoading && <div className="chat-empty">Chưa có tin nhắn nào.</div>}
+              </div>
+              <form className="chat-input-row" onSubmit={handleSendChat}>
+                <input
+                  className="chat-input"
+                  placeholder="Nhắn gì đó..."
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  disabled={isSendingChat}
+                />
+                <button className="chat-send" type="submit" disabled={isSendingChat}>
+                  ➤
+                </button>
+              </form>
             </div>
-            <form className="chat-input-row" onSubmit={handleSendChat}>
-              <input
-                className="chat-input"
-                placeholder="Nhắn gì đó..."
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                disabled={isSendingChat}
-              />
-              <button className="chat-send" type="submit" disabled={isSendingChat}>
-                ➤
-              </button>
-            </form>
-          </div>
+          )}
 
           {isCurrentUserHost ? (
             <button className="btn-start" onClick={handleStartGame} disabled={isStarting || isPlaying || isLeaving}>
@@ -562,7 +576,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             </button>
           ) : (
             <button className="btn-start" disabled>
-              ⏳ Chờ host bắt đầu game
+              <span className="waiting-hourglass" aria-hidden="true">⌛</span> Chờ host bắt đầu game
             </button>
           )}
           <button className="btn-leave" onClick={handleLeaveRoom} disabled={isLeaving}>

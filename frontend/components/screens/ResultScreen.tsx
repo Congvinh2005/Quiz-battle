@@ -75,6 +75,7 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
   const [results, setResults] = useState<LeaderboardRow[]>([]);
   const [roomState, setRoomState] = useState<RoomStateResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReplaying, setIsReplaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previousRanksRef = useRef<Map<string, number>>(new Map());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -186,88 +187,115 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
     ? `${room.player_count ?? roomState?.player_count ?? rows.length} người chơi • ${roomState?.game_state.total_questions ?? 0} câu hỏi • Phòng ${roomCode}`
     : `Phòng ${roomCode}`;
 
+  const handlePlayAgain = async () => {
+    const quizId = room?.quiz_id;
+    if (!quizId) {
+      setError("Không tìm thấy bộ quiz của phòng hiện tại.");
+      return;
+    }
+
+    try {
+      setIsReplaying(true);
+      setError(null);
+
+      const recreatedRoom = await gameService.createRoom({
+        quiz_id: quizId,
+        max_players: roomState?.settings?.max_players,
+        shuffle_questions: roomState?.settings?.shuffle_questions,
+        chat_enabled: roomState?.settings?.chat_enabled,
+      });
+
+      router.push(`/room/${recreatedRoom.room_code}`);
+    } catch (replayError) {
+      console.error("Failed to create replay room:", replayError);
+      setError("Không thể chơi lại lúc này. Vui lòng thử lại sau.");
+    } finally {
+      setIsReplaying(false);
+    }
+  };
+
   return (
     <div className="result-wrap">
       <div className="result-layout">
         <main className="result-main">
-      <section className="result-hero">
-        <div className="result-confetti">
-          {confetti.map((item, index) => (
-            <div
-              className="confetti-bit"
-              key={index}
-              style={{
-                left: item.left,
-                background: item.background,
-                animationDelay: item.delay,
-                animationDuration: item.duration,
-                borderRadius: item.rounded ? "50%" : undefined,
-              }}
-            />
-          ))}
-        </div>
-        <div className="result-trophy">🏆</div>
-        <h1 className="result-title">
-          {title} <span>{room?.status === "FINISHED" ? "Xuất sắc!" : "Đang cập nhật theo WebSocket"}</span>
-        </h1>
-        <p className="result-sub">{subtitle}</p>
-        {error && <p className="result-sub">{error}</p>}
-        {isLoading && <p className="result-sub">Đang tải bảng xếp hạng...</p>}
-      </section>
+          <section className="result-hero">
+            <div className="result-confetti">
+              {confetti.map((item, index) => (
+                <div
+                  className="confetti-bit"
+                  key={index}
+                  style={{
+                    left: item.left,
+                    background: item.background,
+                    animationDelay: item.delay,
+                    animationDuration: item.duration,
+                    borderRadius: item.rounded ? "50%" : undefined,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="result-trophy">🏆</div>
+            <h1 className="result-title">
+              {title} <span>{room?.status === "FINISHED" ? "Xuất sắc!" : "Đang cập nhật theo WebSocket"}</span>
+            </h1>
+            <p className="result-sub">{subtitle}</p>
+            {error && <p className="result-sub">{error}</p>}
+            {isLoading && <p className="result-sub">Đang tải bảng xếp hạng...</p>}
+          </section>
 
-      <section className="podium">
-        {topThree.map((row, index) => (
-          <div className="podium-item" key={`${row.rank}-${row.name}`}>
-            <div
-              className={`podium-av ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}
-              style={{ background: podiumGradients[index] }}
-            >
-              {row.initials}
+          <section className="podium">
+            {topThree.map((row, index) => (
+              <div className="podium-item" key={`${row.rank}-${row.name}`}>
+                <div
+                  className={`podium-av ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}
+                  style={{ background: podiumGradients[index] }}
+                >
+                  {row.initials}
+                </div>
+                <div className={`podium-name${index === 1 && row.isMe ? " podium-name-small" : ""}`}>
+                  {row.name}
+                  {row.isMe && (
+                    <>
+                      <br />
+                      <span className="podium-me">(Bạn)</span>
+                    </>
+                  )}
+                </div>
+                <div className="podium-score">{formatScore(row.score)}</div>
+                <div className={`podium-bar ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>
+                  <div className={`podium-pos ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>{row.rank}</div>
+                </div>
+              </div>
+            ))}
+          </section>
+          <div className="full-leaderboard">
+            <div className="lb-header">
+              <span className="lb-title">📊 Bảng xếp hạng đầy đủ</span>
+              <span className="lb-total">{rows.length} người chơi</span>
             </div>
-            <div className={`podium-name${index === 1 && row.isMe ? " podium-name-small" : ""}`}>
-              {row.name}
-              {row.isMe && (
-                <>
-                  <br />
-                  <span className="podium-me">(Bạn)</span>
-                </>
-              )}
-            </div>
-            <div className="podium-score">{formatScore(row.score)}</div>
-            <div className={`podium-bar ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>
-              <div className={`podium-pos ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>{row.rank}</div>
-            </div>
+            {rows.map((row) => (
+              <div key={row.id} className={`lb-row${row.isMe ? " me" : ""}`}>
+                <div className={`lb-rank-num${row.rankClass ? ` ${row.rankClass}` : ""}`}>
+                  {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
+                </div>
+                <div className="lb-av" style={{ background: row.gradient }}>
+                  {row.initials}
+                </div>
+                <div className="lb-name">
+                  {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
+                </div>
+                <div className="lb-score-val">{formatScore(row.score)}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </section>
-      <div className="full-leaderboard">
-        <div className="lb-header">
-          <span className="lb-title">📊 Bảng xếp hạng đầy đủ</span>
-          <span className="lb-total">{rows.length} người chơi</span>
-        </div>
-        {rows.map((row) => (
-          <div key={row.id} className={`lb-row${row.isMe ? " me" : ""}`}>
-            <div className={`lb-rank-num${row.rankClass ? ` ${row.rankClass}` : ""}`}>
-              {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
-            </div>
-            <div className="lb-av" style={{ background: row.gradient }}>
-              {row.initials}
-            </div>
-            <div className="lb-name">
-              {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
-            </div>
-            <div className="lb-score-val">{formatScore(row.score)}</div>
+          <div className="result-actions">
+            <button className="btn-play-again" onClick={handlePlayAgain} disabled={isReplaying}>
+              {isReplaying ? "Đang tạo phòng mới..." : "🔄 Chơi lại"}
+            </button>
+            <button className="btn-home" onClick={() => router.push("/dashboard")} disabled={isReplaying}>
+              🏠 Về trang chủ
+            </button>
           </div>
-        ))}
-      </div>
-      <div className="result-actions">
-        <button className="btn-play-again" onClick={() => router.push(`/room/${roomCode}`)}>
-          🔄 Chơi lại
-        </button>
-        <button className="btn-home" onClick={() => router.push("/dashboard")}>
-          🏠 Về trang chủ
-        </button>
-      </div>
         </main>
 
         <aside className="mini-board" aria-label="Mini leaderboard realtime">
