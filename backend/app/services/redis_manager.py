@@ -1,17 +1,13 @@
-<<<<<<< HEAD
-from datetime import datetime, timezone
-from uuid import UUID
-=======
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
->>>>>>> phuong
+from uuid import UUID
 
 from redis import Redis
 
 from app.core.config import settings
-<<<<<<< HEAD
 from app.core.exceptions import InvalidToken
 from app.core.security import decode_token
 
@@ -110,14 +106,13 @@ def revoke_user_refresh_tokens(user_id: UUID) -> None:
         pipeline.delete(refresh_token_key(jti))
     pipeline.delete(user_refresh_tokens_key(user_id))
     pipeline.execute()
-=======
 
 
 class RedisManager:
     """Small Redis facade for per-room runtime state."""
 
-    def __init__(self, redis_url: str | None = None):
-        self.client = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True)
+    def __init__(self, redis_url: str | None = None, client: Redis | None = None):
+        self.client = client or Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True)
 
     def _room_prefix(self, room_code: str) -> str:
         return f"quizbattle:room:{room_code}"
@@ -370,5 +365,4 @@ class RedisManager:
         return int(total_questions or 0)
 
 
-redis_manager = RedisManager()
->>>>>>> phuong
+redis_manager = RedisManager(client=get_redis_client())
