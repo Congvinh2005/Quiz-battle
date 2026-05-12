@@ -1,4 +1,5 @@
 import asyncio
+import json
 from uuid import UUID
 from typing import Dict
 
@@ -7,8 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
 from app.db.session import get_db, SessionLocal
+from app.models.game.chat_messages import ChatMessage
 from app.models.game.game_rooms import GameRoom
 from app.models.game.room_players import RoomPlayer
+from app.models.user_auth.users import User
 from app.websockets.connection_manager import ConnectionManager
 
 router = APIRouter()
@@ -41,6 +44,59 @@ def _cancel_pending_close_if_exists(room_code: str) -> None:
     task = pending_room_close_tasks.pop(room_code, None)
     if task and not task.done():
         task.cancel()
+
+
+def _serialize_chat_message(message: ChatMessage, user: User | None) -> dict:
+    return {
+        "id": str(message.id),
+        "room_id": str(message.room_id),
+        "user_id": str(message.user_id),
+        "message": message.message,
+        "created_at": message.created_at,
+        "updated_at": message.updated_at,
+        "user": {
+            "id": str(user.id) if user else None,
+            "username": user.username if user else None,
+        },
+    }
+
+
+async def _handle_chat_message(room_code: str, current_user_id: UUID, payload: dict, db: Session) -> None:
+    room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
+    if not room:
+        return
+
+    if not room.chat_enabled:
+        return
+
+    player = db.query(RoomPlayer).filter(
+        RoomPlayer.room_id == room.id,
+        RoomPlayer.user_id == current_user_id,
+    ).first()
+    if not player:
+        return
+
+    message_text = str(payload.get("message", "")).strip()
+    if not message_text or len(message_text) > 500:
+        return
+
+    message = ChatMessage(
+        room_id=room.id,
+        user_id=current_user_id,
+        message=message_text,
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    user = db.query(User).filter(User.id == current_user_id).first()
+    await manager.broadcast(
+        room_code,
+        {
+            "type": "CHAT_MESSAGE",
+            "data": _serialize_chat_message(message, user),
+        },
+    )
 
 
 async def _close_room_if_host_not_reconnected(room_code: str, host_user_id: UUID) -> None:
@@ -120,7 +176,16 @@ async def game_socket(websocket: WebSocket, room_code: str, db: Session = Depend
     await manager.connect(room_code, str(current_user_id), websocket)
     try:
         while True:
-            await websocket.receive_text()
+            raw_message = await websocket.receive_text()
+            try:
+                parsed = json.loads(raw_message)
+            except json.JSONDecodeError:
+                continue
+
+            event_type = parsed.get("type")
+            data = parsed.get("data") if isinstance(parsed.get("data"), dict) else {}
+            if event_type == "CHAT_MESSAGE":
+                await _handle_chat_message(room_code, current_user_id, data, db)
     except WebSocketDisconnect:
         pass
     finally:
