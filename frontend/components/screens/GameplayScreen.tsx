@@ -591,42 +591,24 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           )}
 
           {/* Submit Button */}
-          <div style={{ marginTop: "20px", display: "flex", gap: "10px", justifyContent: "center" }}>
+          <div className="game-action-row">
             <button
+              className="answer-submit-btn"
               onClick={() => {
                 if (selectedAnswer) {
                   handleSubmitAnswer(selectedAnswer);
                 }
               }}
               disabled={!selectedAnswer || isAnswerSubmitted || isSubmittingAnswer || roomStatus !== "PLAYING"}
-              style={{
-                padding: "12px 32px",
-                fontSize: "16px",
-                fontWeight: "bold",
-                backgroundColor: !selectedAnswer || isAnswerSubmitted ? "#ccc" : "#4CAF50",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: !selectedAnswer || isAnswerSubmitted ? "not-allowed" : "pointer",
-              }}
             >
               {isSubmittingAnswer ? "Đang gửi..." : isAnswerSubmitted ? "Đã trả lời" : "Trả lời"}
             </button>
 
             {/* Next Question Button - each player can advance independently */}
             <button
+              className="answer-next-btn"
               onClick={handleNextQuestion}
               disabled={isNextQuestionLoading || !isAnswerSubmitted || roomStatus !== "PLAYING"}
-              style={{
-                padding: "12px 32px",
-                fontSize: "16px",
-                fontWeight: "bold",
-                backgroundColor: !isAnswerSubmitted || roomStatus !== "PLAYING" ? "#ccc" : "#2196F3",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: !isAnswerSubmitted || roomStatus !== "PLAYING" ? "not-allowed" : "pointer",
-              }}
             >
               {isNextQuestionLoading ? "Đang chuyển..." : "Câu Tiếp →"}
             </button>

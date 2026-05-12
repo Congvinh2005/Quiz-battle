@@ -1,18 +1,35 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import SettingsModal from "../modals/SettingsModal.tsx";
 
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    setIsProfileMenuOpen(false);
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
+    setIsProfileMenuOpen(false);
     router.push("/");
+  };
+
+  const handleManageProfile = () => {
+    setIsProfileMenuOpen(false);
+  };
+
+  const handleManageSettings = () => {
+    setIsProfileMenuOpen(false);
+    setIsSettingsOpen(true);
   };
 
   const isLandingPage = pathname === "/" || pathname === "/login" || pathname === "/register";
@@ -60,27 +77,42 @@ export default function Navigation() {
 
       <div className="nav-tabs">
         {navItems.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <button className={`nav-tab${item.active ? " active" : ""}`}>{item.label}</button>
+          <Link key={item.href} href={item.href} className={`nav-tab${item.active ? " active" : ""}`}>
+            {item.label}
           </Link>
         ))}
         {isAuthenticated && (
-          <button
-            className="nav-tab"
-            style={{ color: "var(--accent)", marginLeft: "auto" }}
-            onClick={handleLogout}
-          >
-            🚪 Đăng xuất
-          </button>
+          <div className="nav-profile-menu" style={{ marginLeft: "auto", position: "relative" }}>
+            <button
+              type="button"
+              className="nav-tab nav-profile-btn"
+              style={{ color: "var(--accent)" }}
+              onClick={() => setIsProfileMenuOpen((current) => !current)}
+            >
+              👤 {user?.username || "Profile"}
+            </button>
+            {isProfileMenuOpen && (
+              <div className="nav-profile-dropdown">
+                <button type="button" className="nav-profile-item" onClick={handleManageProfile}>
+                  ⚙️ Quản lý thông tin
+                </button>
+                <button type="button" className="nav-profile-item" onClick={handleManageSettings}>
+                  ⚙️ Quản lý cấu hình
+                </button>
+                <button type="button" className="nav-profile-item nav-profile-logout" onClick={handleLogout}>
+                  🚪 Đăng xuất
+                </button>
+              </div>
+            )}
+          </div>
         )}
         {!isAuthenticated && (
-          <Link href="/login">
-            <button className="nav-tab" style={{ color: "var(--accent)", marginLeft: "auto" }}>
-              🚪 Đăng xuất
-            </button>
+          <Link href="/login" className="nav-tab" style={{ color: "var(--accent)", marginLeft: "auto" }}>
+            🚪 Đăng nhập
           </Link>
         )}
       </div>
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </nav>
   );
 }
