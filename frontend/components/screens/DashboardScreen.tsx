@@ -176,7 +176,7 @@ export default function DashboardScreen() {
                   <div className="quiz-card-footer">
                     <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
                     <div className="quiz-card-actions">
-                      <button className="play-btn" onClick={() => router.push("/create-room")}>
+                      <button className="play-btn" onClick={() => router.push(`/create-room?quizId=${quiz.id}`)}>
                         ▶ Chơi ngay
                       </button>
                       <button
@@ -249,7 +249,7 @@ export default function DashboardScreen() {
                   </div>
                   <div className="quiz-card-footer">
                     <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
-                    <button className="play-btn" onClick={() => router.push("/create-room")}>
+                    <button className="play-btn" onClick={() => router.push(`/create-room?quizId=${quiz.id}`)}>
                       ▶ Dùng ngay
                     </button>
                   </div>
