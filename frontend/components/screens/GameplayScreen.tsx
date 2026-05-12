@@ -107,6 +107,24 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const previousRanksRef = useRef<Map<string, number>>(new Map());
   const rankFlashTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [rankFlashingUserIds, setRankFlashingUserIds] = useState<string[]>([]);
+  const questionLoadRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshRoomState = async () => {
+    const state = await gameService.getRoomState(roomCode);
+    setRoomState(state);
+
+    if (state?.game_state?.status === "PLAYING" && !state?.game_state?.current_question) {
+      if (questionLoadRetryRef.current) {
+        clearTimeout(questionLoadRetryRef.current);
+      }
+
+      questionLoadRetryRef.current = setTimeout(() => {
+        void refreshRoomState().catch(console.error);
+      }, 300);
+    }
+
+    return state;
+  };
 
   // Load initial state and chat messages
   useEffect(() => {
@@ -118,11 +136,9 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         setError(null);
 
         const [state, messages] = await Promise.all([
-          gameService.getRoomState(roomCode),
+          refreshRoomState(),
           gameService.getChatMessages(roomCode),
         ]);
-
-        setRoomState(state);
         setChatMessages(
           messages.map((message) => ({
             name: message.user?.username || "Người chơi",
@@ -209,9 +225,60 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         // Reset timer to new question's time_limit
         const newTimeLimit = data?.question?.time_limit || 30;
         setTimeRemaining(newTimeLimit);
-        // Reload room state to get new question
-        gameService.getRoomState(roomCode).then(setRoomState).catch(console.error);
+
+        // Use the websocket payload immediately so the first question renders
+        // even if the follow-up API refresh is briefly stale.
+        if (data?.question) {
+          setRoomState((prev) => {
+            if (!prev) return prev;
+
+            return {
+              ...prev,
+              game_state: {
+                ...prev.game_state,
+                current_question_order: data.current_question_order ?? prev.game_state.current_question_order,
+                current_question: data.question,
+                total_questions: data.total_questions ?? prev.game_state.total_questions,
+              },
+            };
+          });
+          return;
+        }
+
+        // Fall back to a server refresh if the payload is incomplete.
+        refreshRoomState().catch(console.error);
       }
+    };
+
+    const handleGameStarted = (data: any) => {
+      setSelectedAnswer(null);
+      setIsAnswerSubmitted(false);
+      setAnswerFeedback(null);
+      setTimerActive(true);
+      autoAdvanceTriggeredRef.current = false;
+      questionStartTimeRef.current = Date.now();
+
+      if (data?.room) {
+        setRoomState((prev) => {
+          if (!prev) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            room: data.room,
+            players: Array.isArray(data.players) ? data.players : prev.players,
+            player_count: typeof data.player_count === "number" ? data.player_count : prev.player_count,
+            game_state: {
+              ...prev.game_state,
+              status: "PLAYING",
+              current_question_order: data.room?.current_question_order ?? prev.game_state.current_question_order,
+            },
+          };
+        });
+      }
+
+      refreshRoomState().catch(console.error);
     };
 
     const handlePlayerAnswered = (data: any) => {
@@ -248,6 +315,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     wsService.on("QUESTION_CHANGED", handleQuestionChanged);
+    wsService.on("GAME_STARTED", handleGameStarted);
     wsService.on("PLAYER_ANSWERED", handlePlayerAnswered);
     wsService.on("GAME_ENDED", handleGameEnded);
     wsService.on("CHAT_MESSAGE", handleChatMessage);
@@ -257,7 +325,12 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     });
 
     return () => {
+      if (questionLoadRetryRef.current) {
+        clearTimeout(questionLoadRetryRef.current);
+        questionLoadRetryRef.current = null;
+      }
       wsService.off("QUESTION_CHANGED", handleQuestionChanged);
+      wsService.off("GAME_STARTED", handleGameStarted);
       wsService.off("PLAYER_ANSWERED", handlePlayerAnswered);
       wsService.off("GAME_ENDED", handleGameEnded);
       wsService.off("CHAT_MESSAGE", handleChatMessage);

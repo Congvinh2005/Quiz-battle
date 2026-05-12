@@ -516,11 +516,11 @@ Cần đảm bảo:
 
 ## Gameplay
 
-- GET /rooms/{room_code}/state 🔒
-- POST /rooms/{room_code}/answers 🔒
-- GET /rooms/{room_code}/leaderboard 🔒
-- POST /rooms/{room_code}/next-question 🔒
-- POST /rooms/{room_code}/finish 🔒
+- GET /rooms/{room_code}/state 🔒(Done)
+- POST /rooms/{room_code}/answers 🔒(Done)
+- GET /rooms/{room_code}/leaderboard 🔒(Done)
+- POST /rooms/{room_code}/next-question 🔒(Done)
+- POST /rooms/{room_code}/finish 🔒(Done)
 
 ## Chat
 
@@ -529,7 +529,7 @@ Cần đảm bảo:
 
 ## Result
 
-- GET /rooms/{room_code}/results 🔒
+- GET /rooms/{room_code}/results 🔒(Done)
 
 ## Realtime
 

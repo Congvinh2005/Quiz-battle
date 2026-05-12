@@ -107,6 +107,16 @@ async def game_socket(websocket: WebSocket, room_code: str, db: Session = Depend
     if room and room.host_id == current_user_id:
         _cancel_pending_close_if_exists(room_code)
 
+    if room and room.status in ("PLAYING", "FINISHED"):
+        player = db.query(RoomPlayer).filter(
+            RoomPlayer.room_id == room.id,
+            RoomPlayer.user_id == current_user_id,
+        ).first()
+
+        if not player:
+            await websocket.close(code=4403)
+            return
+
     await manager.connect(room_code, str(current_user_id), websocket)
     try:
         while True:
@@ -119,8 +129,7 @@ async def game_socket(websocket: WebSocket, room_code: str, db: Session = Depend
         if not room:
             return
 
-		# Active or finished games should continue even if the host disconnects.
-        if room.status in ("PLAYING", "FINISHED"):
+        if room.status == "FINISHED":
             return
 
         if room.host_id == current_user_id:

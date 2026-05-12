@@ -221,6 +221,30 @@ def _serialize_room_state(room: GameRoom, db: Session) -> dict:
 	}
 
 
+def _get_active_question(room: GameRoom, db: Session, current_question_order: int) -> tuple[dict | None, int]:
+	game_questions = sorted(list(room.game_questions or []), key=lambda game_question: game_question.question_order or 0)
+	if not game_questions:
+		return None, current_question_order
+
+	if current_question_order < 1:
+		current_question_order = 1
+
+	current_game_question = None
+	for game_question in game_questions:
+		if game_question.question_order == current_question_order:
+			current_game_question = game_question
+			break
+
+	if current_game_question is None:
+		current_game_question = game_questions[0]
+		current_question_order = current_game_question.question_order or 1
+
+	if current_game_question.question:
+		return _serialize_question(current_game_question.question), current_question_order
+
+	return None, current_question_order
+
+
 def get_room_state(room_code: str, db: Session, current_user: UUID = None) -> dict:
 	room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
 	if not room:
@@ -244,17 +268,10 @@ def get_room_state(room_code: str, db: Session, current_user: UUID = None) -> di
 			current_question_order = current_player.current_question_order or 1
 	elif room.status == "PLAYING":
 		current_question_order = room.current_question_order or 1
-	
-	current_game_question = None
-	if room.status == "PLAYING" and game_questions:
-		for game_question in game_questions:
-			if game_question.question_order == current_question_order:
-				current_game_question = game_question
-				break
 
 	current_question = None
-	if current_game_question and current_game_question.question:
-		current_question = _serialize_question(current_game_question.question)
+	if room.status == "PLAYING":
+		current_question, current_question_order = _get_active_question(room, db, current_question_order)
 	elif room.status == "WAITING" and quiz_questions:
 		current_question = _serialize_question(quiz_questions[0])
 
@@ -378,14 +395,14 @@ async def join_room(room_code: str, payload: dict, current_user: UUID, db: Sessi
 	if not room:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
+	if room.status != "WAITING":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is not in WAITING status")
+
 	existing = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
 	if not existing:
 		player_count = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).count()
 		if player_count >= room.max_players:
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is full")
-
-		if room.status != "WAITING":
-			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is not in WAITING status")
 
 	display_name = payload.get("display_name")
 	if not display_name:
@@ -457,6 +474,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 			db.commit()
 			return None
 
+		_mark_player_finished_on_leave(room, current_user, db)
 		await manager.broadcast(
 			room_code,
 			{
@@ -468,6 +486,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 				},
 			},
 		)
+		await _maybe_auto_finalize_game(room_code, room, db)
 		return None
 
 	player = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id, RoomPlayer.user_id == current_user).first()
@@ -491,6 +510,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 			)
 			return None
 
+		_mark_player_finished_on_leave(room, current_user, db)
 		await manager.broadcast(
 			room_code,
 			{
@@ -500,10 +520,11 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 					"player": _serialize_player(player),
 					"players": [_serialize_player(remaining_player) for remaining_player in db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()],
 					"player_count": db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).count(),
-					"message": "Người chơi đã rời tạm thời, có thể vào lại bằng mã phòng.",
+					"message": "Người chơi đã rời phòng trong lúc đang chơi, điểm đã được giữ lại.",
 				},
 			},
 		)
+		await _maybe_auto_finalize_game(room_code, room, db)
 	return None
 
 
@@ -600,12 +621,28 @@ def _all_players_finished(room: GameRoom, db: Session) -> bool:
 
 	players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
 	if not players:
-		return False
+		return True
 
 	for player in players:
 		if (player.current_question_order or 0) <= total_questions:
 			return False
 
+	return True
+
+
+def _mark_player_finished_on_leave(room: GameRoom, user_id: UUID, db: Session) -> bool:
+	if room.status != "PLAYING":
+		return False
+
+	player = db.query(RoomPlayer).filter(
+		RoomPlayer.room_id == room.id,
+		RoomPlayer.user_id == user_id,
+	).first()
+	if not player:
+		return False
+
+	db.delete(player)
+	db.commit()
 	return True
 
 
@@ -945,15 +982,6 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 			},
 		},
 	)
-
-	total_questions = db.query(GameQuestion).filter(GameQuestion.room_id == room.id).count()
-	if current_question_order >= total_questions:
-		player.current_question_order = total_questions + 1
-		db.commit()
-		db.refresh(player)
-
-		if room.status == "PLAYING":
-			await _maybe_auto_finalize_game(room_code, room, db)
 
 	return {
 		"question_order": current_question_order,
