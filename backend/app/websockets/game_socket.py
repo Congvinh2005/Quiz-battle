@@ -12,6 +12,7 @@ from app.models.game.chat_messages import ChatMessage
 from app.models.game.game_rooms import GameRoom
 from app.models.game.room_players import RoomPlayer
 from app.models.user_auth.users import User
+from app.services.redis_manager import redis_manager
 from app.websockets.connection_manager import ConnectionManager
 
 router = APIRouter()
@@ -62,6 +63,48 @@ def _serialize_chat_message(message: ChatMessage, user: User | None) -> dict:
 
 
 async def _handle_chat_message(room_code: str, current_user_id: UUID, payload: dict, db: Session) -> None:
+    cached_meta = redis_manager.get_room_meta(room_code)
+    if cached_meta:
+        if not cached_meta.get("chat_enabled"):
+            return
+
+        player = redis_manager.get_player(room_code, str(current_user_id))
+        if not player or player.get("status") == "LEFT":
+            return
+
+        message_text = str(payload.get("message", "")).strip()
+        if not message_text or len(message_text) > 500:
+            return
+
+        message = ChatMessage(
+            room_id=UUID(str(cached_meta.get("id"))),
+            user_id=current_user_id,
+            message=message_text,
+        )
+        db.add(message)
+        db.commit()
+        db.refresh(message)
+
+        await manager.broadcast(
+            room_code,
+            {
+                "type": "CHAT_MESSAGE",
+                "data": {
+                    "id": str(message.id),
+                    "room_id": str(message.room_id),
+                    "user_id": str(message.user_id),
+                    "message": message.message,
+                    "created_at": message.created_at,
+                    "updated_at": message.updated_at,
+                    "user": {
+                        "id": str(current_user_id),
+                        "username": player.get("display_name"),
+                    },
+                },
+            },
+        )
+        return
+
     room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         return
@@ -159,19 +202,30 @@ async def game_socket(websocket: WebSocket, room_code: str, db: Session = Depend
         await websocket.close(code=4401)
         return
 
-    room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
-    if room and room.host_id == current_user_id:
-        _cancel_pending_close_if_exists(room_code)
+    cached_meta = redis_manager.get_room_meta(room_code)
+    if cached_meta:
+        if cached_meta.get("host_id") == str(current_user_id):
+            _cancel_pending_close_if_exists(room_code)
 
-    if room and room.status in ("PLAYING", "FINISHED"):
-        player = db.query(RoomPlayer).filter(
-            RoomPlayer.room_id == room.id,
-            RoomPlayer.user_id == current_user_id,
-        ).first()
+        if cached_meta.get("status") in ("PLAYING", "FINISHED"):
+            player = redis_manager.get_player(room_code, str(current_user_id))
+            if not player and cached_meta.get("host_id") != str(current_user_id):
+                await websocket.close(code=4403)
+                return
+    else:
+        room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
+        if room and room.host_id == current_user_id:
+            _cancel_pending_close_if_exists(room_code)
 
-        if not player:
-            await websocket.close(code=4403)
-            return
+        if room and room.status in ("PLAYING", "FINISHED"):
+            player = db.query(RoomPlayer).filter(
+                RoomPlayer.room_id == room.id,
+                RoomPlayer.user_id == current_user_id,
+            ).first()
+
+            if not player:
+                await websocket.close(code=4403)
+                return
 
     await manager.connect(room_code, str(current_user_id), websocket)
     try:
