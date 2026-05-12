@@ -102,7 +102,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(30);
-  const [timerActive, setTimerActive] = useState<boolean>(true);
+  const [timerActive, setTimerActive] = useState<boolean>(false);
   const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
   const [shakingAnswerId, setShakingAnswerId] = useState<string | null>(null);
   const questionStartTimeRef = useRef<number>(0);
@@ -114,6 +114,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const questionLoadRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeQuestionIdRef = useRef<string | null>(null);
   const getErrorMessage = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
 
   const playFeedbackSound = useCallback((isCorrect: boolean) => {
@@ -221,7 +222,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         // Initialize timer from question's time_limit
         const timeLimit = state?.game_state?.current_question?.time_limit || 30;
         setTimeRemaining(timeLimit);
-        setTimerActive(true);
+        setTimerActive(Boolean(state?.game_state?.current_question));
       } catch (loadError) {
         setError("Không tải được trạng thái phòng. Vui lòng quay lại lobby hoặc thử refresh.");
       } finally {
@@ -272,6 +273,22 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
   }, [timerActive, roomCode, isNextQuestionLoading]);
 
+  // Ensure timer starts exactly when the first playable question appears.
+  useEffect(() => {
+    const question = roomState?.game_state?.current_question;
+    if (!question?.id) return;
+    if (activeQuestionIdRef.current === question.id) return;
+
+    activeQuestionIdRef.current = question.id;
+    questionStartTimeRef.current = Date.now();
+    autoAdvanceTriggeredRef.current = false;
+    setSelectedAnswer(null);
+    setIsAnswerSubmitted(false);
+    setAnswerFeedback(null);
+    setTimeRemaining(question.time_limit || 30);
+    setTimerActive(true);
+  }, [roomState?.game_state?.current_question]);
+
   // WebSocket listeners for real-time updates
   useEffect(() => {
     if (!roomCode) return;
@@ -320,7 +337,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       setSelectedAnswer(null);
       setIsAnswerSubmitted(false);
       setAnswerFeedback(null);
-      setTimerActive(true);
+      setTimerActive(false);
       autoAdvanceTriggeredRef.current = false;
       questionStartTimeRef.current = Date.now();
 
