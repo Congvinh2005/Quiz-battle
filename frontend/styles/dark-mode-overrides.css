@@ -783,3 +783,13 @@
     background: rgba(124, 58, 237, 0.08);
   }
 }
+
+/* Dark mode password toggle */
+.dark-mode .password-toggle {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.dark-mode .password-toggle:hover {
+  opacity: 0.8;
+}

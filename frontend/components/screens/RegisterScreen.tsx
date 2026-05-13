@@ -12,6 +12,8 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [strengthText, setStrengthText] = useState("");
   const [strengthColor, setStrengthColor] = useState("var(--border2)");
   const [strengthWidth, setStrengthWidth] = useState("0%");
@@ -120,7 +122,7 @@ export default function RegisterScreen() {
 
           <div className="form-group">
             <label className="form-label">Tên đăng nhập (username)</label>
-            <input className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="minhkhoa_99" required />
+            <input className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="User name" required />
           </div>
 
           <div className="form-group">
@@ -130,18 +132,28 @@ export default function RegisterScreen() {
 
           <div className="form-group">
             <label className="form-label">Mật khẩu</label>
-            <input
-              className="form-input"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                const value = e.target.value;
-                setPassword(value);
-                evaluatePassword(value);
-              }}
-              placeholder="Tối thiểu 8 ký tự, có chữ hoa và số"
-              required
-            />
+            <div className="password-wrapper">
+              <input
+                className="form-input"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPassword(value);
+                  evaluatePassword(value);
+                }}
+                placeholder="Tối thiểu 8 ký tự, có chữ hoa và số"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                {showPassword ? "👁" : "👁‍🗨"}
+              </button>
+            </div>
             <div className="strength-bar">
               <div className="strength-fill" style={{ width: strengthWidth, background: strengthColor }} />
             </div>
@@ -152,14 +164,24 @@ export default function RegisterScreen() {
 
           <div className="form-group">
             <label className="form-label">Xác nhận mật khẩu</label>
-            <input
-              className="form-input"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Nhập lại mật khẩu"
-              required
-            />
+            <div className="password-wrapper">
+              <input
+                className="form-input"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Nhập lại mật khẩu"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                {showConfirmPassword ? "👁" : "👁‍🗨"}
+              </button>
+            </div>
           </div>
 
           <button className="btn-primary" type="submit" disabled={isLoading}>

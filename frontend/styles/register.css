@@ -53,3 +53,28 @@
 .step-dot.active { width: 20px; background: var(--primary); }
 
 .register-footer { margin-top: 24px; text-align: center; font-size: 13px; color: var(--muted); }
+
+/* Password visibility toggle */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
