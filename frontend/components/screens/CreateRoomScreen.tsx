@@ -245,11 +245,20 @@ export default function CreateRoomScreen() {
                   {maxPlayers}
                 </div>
                 <div className="setting-stepper">
-                  <button className="stepper-btn" onClick={() => adjustPlayers(-5)}>
+                  <button type="button" className="stepper-btn" onClick={() => adjustPlayers(-5)}>
                     −
                   </button>
-                  <div className="setting-meter" />
-                  <button className="stepper-btn" onClick={() => adjustPlayers(5)}>
+                  <input
+                    className="setting-range"
+                    type="range"
+                    min={2}
+                    max={100}
+                    step={1}
+                    value={maxPlayers}
+                    onChange={(event) => setMaxPlayers(Number(event.target.value))}
+                    aria-label="Kéo để chỉnh số người tối đa"
+                  />
+                  <button type="button" className="stepper-btn" onClick={() => adjustPlayers(5)}>
                     +
                   </button>
                 </div>
@@ -273,7 +282,7 @@ export default function CreateRoomScreen() {
                 <div className="setting-toggle-row">
                   <div className="setting-toggle-label">{roomChat ? "Bật" : "Tắt"}</div>
                   <button
-                    className={`setting-toggle${roomChat ? " on-accent is-on" : " is-off"}`}
+                    className={`setting-toggle${roomChat ? " on-green is-on" : " is-off"}`}
                     onClick={() => setRoomChat((value) => !value)}
                     aria-label="Bật tắt chat trong phòng"
                   />

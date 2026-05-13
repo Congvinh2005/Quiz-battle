@@ -184,23 +184,60 @@
   justify-content: center;
 }
 
-.setting-meter {
+.setting-range {
   flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--primary);
-  position: relative;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.setting-meter::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: -4px;
-  width: 12px;
-  height: 12px;
+.setting-range:focus {
+  outline: none;
+}
+
+.setting-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--green));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.setting-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--primary);
+  background: #ffffff;
+  border: 3px solid var(--green);
+  margin-top: -7px;
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.28);
+}
+
+.setting-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--green));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.setting-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--green);
+  box-shadow: 0 6px 18px rgba(22, 197, 74, 0.28);
+}
+
+.setting-range:hover::-webkit-slider-thumb,
+.setting-range:active::-webkit-slider-thumb,
+.setting-range:hover::-moz-range-thumb,
+.setting-range:active::-moz-range-thumb {
+  transform: scale(1.04);
 }
 
 .setting-toggle-row {
@@ -232,6 +269,12 @@
 
 .setting-toggle.on-green {
   background: var(--green);
+}
+
+.setting-toggle.on-green.is-on,
+.setting-toggle.on-accent.is-on {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.28);
 }
 
 .setting-toggle.on-accent {
@@ -290,8 +333,6 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  opacity: 0.8;
-  margin-bottom: 8px;
   color: #ffffff;
 }
 
