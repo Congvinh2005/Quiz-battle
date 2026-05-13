@@ -774,10 +774,12 @@
     transform: translateX(0);
     background: rgba(124, 58, 237, 0.18);
   }
+
   35% {
     transform: translateX(-4px) scale(1.01);
     background: rgba(14, 165, 233, 0.2);
   }
+
   100% {
     transform: translateX(0);
     background: rgba(124, 58, 237, 0.08);
