@@ -1,16 +1,9 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-.gitignore
-__pycache__/
-*.pyc
-=======
->>>>>>> phuong
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.pyc
 
 # C extensions
 *.so
@@ -41,12 +34,3 @@ redisinsight_data/
 .vscode/
 .idea/
 *.swp
-<<<<<<< HEAD
-=======
-.gitignore
-__pycache__/
-*.pyc
->>>>>>> origin/phuong
-=======
->>>>>>> origin/anthai
->>>>>>> phuong

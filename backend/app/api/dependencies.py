@@ -19,6 +19,9 @@ async def get_current_user(authorization: str = Header(None)) -> UUID:
     if payload is None:
         raise InvalidToken("Could not validate credentials")
 
+    if payload.get("type") != "access":
+        raise InvalidToken("Invalid token type")
+
     user_id: str = payload.get("sub")
     if user_id is None:
         raise InvalidToken("Could not validate credentials")

@@ -297,38 +297,6 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
             </button>
           </div>
         </main>
-
-        <aside className="mini-board" aria-label="Mini leaderboard realtime">
-          <div className="mini-board-header">
-            <div>
-              <div className="mini-board-kicker">LIVE RANKING</div>
-              <div className="mini-board-title">Mini-board dọc</div>
-            </div>
-            <span className={`mini-board-pill${room?.status === "FINISHED" ? " done" : " live"}`}>
-              {room?.status === "FINISHED" ? "FINAL" : "LIVE"}
-            </span>
-          </div>
-
-          <div className="mini-board-list">
-            {miniBoardRows.map((row) => (
-              <div
-                className={`mini-board-row${row.isMe ? " me" : ""}${highlightedRowIds.includes(row.id) ? " flash" : ""}`}
-                key={row.id}
-              >
-                <div className={`mini-rank${row.rankClass ? ` ${row.rankClass}` : ""}`}>{row.rank}</div>
-                <div className="mini-av" style={{ background: row.gradient }}>
-                  {row.initials}
-                </div>
-                <div className="mini-meta">
-                  <div className="mini-name">
-                    {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
-                  </div>
-                  <div className="mini-score">{formatScore(row.score)} pts</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
       </div>
     </div>
   );
