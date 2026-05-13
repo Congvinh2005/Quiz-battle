@@ -3,6 +3,7 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/authService";
 import { gameService } from "@/services/gameService";
 import { wsService } from "@/services/websocketService";
 import { GameRoom, RoomPlayer } from "@/types";
@@ -72,22 +73,51 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasRedirectedRef = useRef(false);
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
+  const pendingOptimisticMessageIdRef = useRef<string | null>(null);
 
   const isRoomNotFoundError = useCallback((err: any) => err?.response?.status === 404, []);
   const getErrorMessage = useCallback((err: any, fallback: string) => {
     return err?.response?.data?.detail || err?.message || fallback;
   }, []);
   const hostUserId = room?.host_id || null;
-  const toChatLine = useCallback((message: any): ChatLine => {
+  
+  const toChatLine = useCallback((message: any, overrideHostUserId?: string | null): ChatLine => {
     const userId = message?.user_id || message?.user?.id;
+    const effectiveHostId = overrideHostUserId !== undefined ? overrideHostUserId : hostUserId;
     return {
       id: message?.id,
       userId,
-      isHost: !!(hostUserId && userId && String(userId) === String(hostUserId)),
+      isHost: !!(effectiveHostId && userId && String(userId) === String(effectiveHostId)),
       name: message?.user?.username || message?.name || "Người chơi",
       text: message?.message || message?.text || "",
     };
   }, [hostUserId]);
+  const ensureFreshAccessToken = useCallback(async () => {
+    if (typeof window === "undefined") return "";
+
+    const currentToken = localStorage.getItem("access_token") || "";
+    const refreshToken = localStorage.getItem("refresh_token") || "";
+
+    if (!refreshToken) {
+      return currentToken;
+    }
+
+    try {
+      await authService.getCurrentUser();
+      return currentToken;
+    } catch {
+      try {
+        const tokens = await authService.refreshToken(refreshToken);
+        localStorage.setItem("access_token", tokens.access_token);
+        if (tokens.refresh_token) {
+          localStorage.setItem("refresh_token", tokens.refresh_token);
+        }
+        return tokens.access_token;
+      } catch {
+        return currentToken;
+      }
+    }
+  }, []);
   const mergeChatMessages = useCallback((current: ChatLine[], incoming: ChatLine[]) => {
     if (!incoming.length) return current;
 
@@ -139,8 +169,10 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         ]);
         setRoom(roomData);
         setPlayers(playersData);
+        // Use host_id from roomData directly, not from component state
+        const hostIdFromRoom = roomData?.host_id || null;
         setChatMessages(
-          chatHistory.map((message) => toChatLine(message))
+          chatHistory.map((message) => toChatLine(message, hostIdFromRoom))
         );
 
         // Auto-redirect if game is already playing (late joiners)
@@ -166,6 +198,32 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       loadRoom();
     }
   }, [roomCode, isRoomNotFoundError, notifyRoomClosedAndRedirect, router]);
+
+  // Re-map chat messages when hostUserId is available to ensure host highlight is correct
+  useEffect(() => {
+    if (!hostUserId || chatMessages.length === 0) return;
+
+    setChatMessages((prev) => {
+      // Check if any message doesn't have proper isHost flag set yet
+      const needsUpdate = prev.some((msg) => {
+        const userId = msg.userId;
+        const shouldBeHost = !!(hostUserId && userId && String(userId) === String(hostUserId));
+        return msg.isHost !== shouldBeHost;
+      });
+
+      if (!needsUpdate) return prev;
+
+      // Re-map messages with correct host highlighting
+      return prev.map((msg) => {
+        const userId = msg.userId;
+        const isHost = !!(hostUserId && userId && String(userId) === String(hostUserId));
+        return {
+          ...msg,
+          isHost,
+        };
+      });
+    });
+  }, [hostUserId]);
 
   // Polling fallback: Check room status every 500ms to catch game start
   useEffect(() => {
@@ -206,13 +264,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   useEffect(() => {
     if (!roomCode || roomClosedMessage) return;
 
-    const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
-
-    if (!accessToken) {
-      console.warn("Skip realtime lobby connection: missing access token.");
-      setIsRealtimeReady(true);
-      return;
-    }
+    let cancelled = false;
 
     const applyRoomState = (data: any) => {
       if (data?.room) {
@@ -258,10 +310,14 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       if (data?.message) {
         setChatMessages((prev) => {
           const incomingId = typeof data?.id === "string" ? data.id : undefined;
+
+          // Check if this message already exists (prevents duplicates from broadcast)
           if (incomingId && prev.some((msg) => msg.id === incomingId)) {
             return prev;
           }
 
+          // Just append - if this is from current user, it should have been replaced
+          // by POST response already. If from others, append it.
           return [
             ...prev,
             toChatLine({
@@ -277,27 +333,41 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
     setIsRealtimeReady(false);
 
-    wsService.on("PLAYER_JOINED", handlePlayerJoined);
-    wsService.on("PLAYER_LEFT", handlePlayerLeft);
-    wsService.on("GAME_STARTED", handleGameStarted);
-    wsService.on("ROOM_CLOSED", handleRoomClosed);
-    wsService.on("CHAT_MESSAGE", handleChatMessage);
+    const connectRealtime = async () => {
+      const accessToken = await ensureFreshAccessToken();
+      if (cancelled || !accessToken) {
+        setIsRealtimeReady(true);
+        return;
+      }
 
-    wsService.connect(accessToken, roomCode).catch((err) => {
-      console.error("Failed to connect websocket:", err);
-    }).finally(() => {
-      setIsRealtimeReady(true);
-    });
+      wsService.on("PLAYER_JOINED", handlePlayerJoined);
+      wsService.on("PLAYER_LEFT", handlePlayerLeft);
+      wsService.on("GAME_STARTED", handleGameStarted);
+      wsService.on("ROOM_CLOSED", handleRoomClosed);
+      wsService.on("CHAT_MESSAGE", handleChatMessage);
+
+      wsService.connect(accessToken, roomCode).catch((err) => {
+        console.error("Failed to connect websocket:", err);
+      }).finally(() => {
+        if (!cancelled) {
+          setIsRealtimeReady(true);
+        }
+      });
+    };
+
+    void connectRealtime();
 
     return () => {
+      cancelled = true;
       wsService.off("PLAYER_JOINED", handlePlayerJoined);
       wsService.off("PLAYER_LEFT", handlePlayerLeft);
       wsService.off("GAME_STARTED", handleGameStarted);
       wsService.off("ROOM_CLOSED", handleRoomClosed);
       wsService.off("CHAT_MESSAGE", handleChatMessage);
       wsService.disconnect();
+      setIsRealtimeReady(true);
     };
-  }, [roomCode, roomClosedMessage, notifyRoomClosedAndRedirect, router]);
+  }, [roomCode, roomClosedMessage, notifyRoomClosedAndRedirect, router, ensureFreshAccessToken]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -348,16 +418,60 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     try {
       setIsSendingChat(true);
       setError(null);
-      const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
-      if (!accessToken) {
-        throw new Error("Thiếu access token để gửi chat realtime.");
-      }
 
-      if (!wsService.isConnected()) {
-        await wsService.connect(accessToken, roomCode);
-      }
+      // Show optimistic message immediately
+      const optimisticMessageId = `local-${Date.now()}`;
+      const optimisticMessage = {
+        id: optimisticMessageId,
+        user_id: user?.id,
+        user: { id: user?.id, username: user?.username },
+        message: text,
+      };
 
-      wsService.emit("CHAT_MESSAGE", { message: text });
+      // Track this optimistic message so we can replace it when server responds
+      pendingOptimisticMessageIdRef.current = optimisticMessageId;
+      setChatMessages((prev) => mergeChatMessages(prev, [toChatLine(optimisticMessage)]));
+
+      try {
+        // Send message to server
+        const savedMessage = await gameService.postChatMessage(roomCode, { message: text });
+
+        // Replace optimistic message with real message from server response
+        // This way we don't wait for broadcast and avoid duplicates
+        setChatMessages((prev) => {
+          const index = prev.findIndex((msg) => msg.id === optimisticMessageId);
+          if (index !== -1) {
+            const updated = [...prev];
+            updated[index] = toChatLine({
+              id: savedMessage.id,
+              user_id: savedMessage.user_id,
+              user: savedMessage.user,
+              message: savedMessage.message,
+            });
+            pendingOptimisticMessageIdRef.current = null;
+            return updated;
+          }
+          return prev;
+        });
+      } catch (chatError: any) {
+        // If network error (no response), try WebSocket fallback
+        if (!chatError?.response) {
+          const accessToken = await ensureFreshAccessToken();
+          if (accessToken) {
+            if (!wsService.isConnected()) {
+              await wsService.connect(accessToken, roomCode);
+            }
+            wsService.emit("CHAT_MESSAGE", { message: text });
+          } else {
+            throw chatError;
+          }
+        } else {
+          // If HTTP error (with response), remove optimistic message and show error
+          setChatMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessageId));
+          pendingOptimisticMessageIdRef.current = null;
+          throw chatError;
+        }
+      }
       setChatInput("");
     } catch (err) {
       setError(getErrorMessage(err, "Không gửi được tin nhắn. Vui lòng thử lại."));

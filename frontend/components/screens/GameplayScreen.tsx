@@ -2,6 +2,7 @@
 
 import React, { FormEvent, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/authService";
 import { gameService } from "@/services/gameService";
 import { wsService } from "@/services/websocketService";
 import { ChatMessage, RoomStateResponse } from "@/types";
@@ -115,7 +116,39 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeQuestionIdRef = useRef<string | null>(null);
+  const pendingOptimisticMessageIdRef = useRef<string | null>(null);
   const getErrorMessage = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
+
+  const ensureFreshAccessToken = useCallback(async () => {
+    if (typeof window === "undefined") return "";
+
+    const currentToken = localStorage.getItem("access_token") || "";
+    const refreshToken = localStorage.getItem("refresh_token") || "";
+
+    if (!refreshToken) {
+      return currentToken;
+    }
+
+    try {
+      const currentUser = await authService.getCurrentUser();
+      if (currentUser?.id) {
+        return currentToken;
+      }
+    } catch {
+      try {
+        const tokens = await authService.refreshToken(refreshToken);
+        localStorage.setItem("access_token", tokens.access_token);
+        if (tokens.refresh_token) {
+          localStorage.setItem("refresh_token", tokens.refresh_token);
+        }
+        return tokens.access_token;
+      } catch {
+        return currentToken;
+      }
+    }
+
+    return currentToken;
+  }, []);
 
   const playFeedbackSound = useCallback((isCorrect: boolean) => {
     if (typeof window === "undefined") return;
@@ -151,12 +184,14 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     }, 350);
   }, []);
   const hostUserId = roomState?.room?.host_id || null;
-  const toChatLine = useCallback((message: any): ChatLine => {
+  
+  const toChatLine = useCallback((message: any, overrideHostUserId?: string | null): ChatLine => {
     const userId = message?.user_id || message?.user?.id;
+    const effectiveHostId = overrideHostUserId !== undefined ? overrideHostUserId : hostUserId;
     return {
       id: message?.id,
       userId,
-      isHost: !!(hostUserId && userId && String(userId) === String(hostUserId)),
+      isHost: !!(effectiveHostId && userId && String(userId) === String(effectiveHostId)),
       name: message?.user?.username || message?.name || "Người chơi",
       text: message?.message || message?.text || "",
     };
@@ -209,8 +244,10 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           refreshRoomState(),
           gameService.getChatMessages(roomCode),
         ]);
+        // Use host_id from the returned state directly, not from component state
+        const hostIdFromState = state?.room?.host_id || null;
         setChatMessages(
-          messages.map((message) => toChatLine(message))
+          messages.map((message) => toChatLine(message, hostIdFromState))
         );
 
         // Track when question started for response time
@@ -232,6 +269,32 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
 
     loadState();
   }, [roomCode]);
+
+  // Re-map chat messages when hostUserId is available to ensure host highlight is correct
+  useEffect(() => {
+    if (!hostUserId || chatMessages.length === 0) return;
+
+    setChatMessages((prev) => {
+      // Check if any message doesn't have proper isHost flag set yet
+      const needsUpdate = prev.some((msg) => {
+        const userId = msg.userId;
+        const shouldBeHost = !!(hostUserId && userId && String(userId) === String(hostUserId));
+        return msg.isHost !== shouldBeHost;
+      });
+
+      if (!needsUpdate) return prev;
+
+      // Re-map messages with correct host highlighting
+      return prev.map((msg) => {
+        const userId = msg.userId;
+        const isHost = !!(hostUserId && userId && String(userId) === String(hostUserId));
+        return {
+          ...msg,
+          isHost,
+        };
+      });
+    });
+  }, [hostUserId]);
 
   // Countdown timer effect - auto-advance to next question when time reaches 0
   useEffect(() => {
@@ -293,8 +356,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   useEffect(() => {
     if (!roomCode) return;
 
-    const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
-    if (!accessToken) return;
+    let cancelled = false;
 
     const handleQuestionChanged = (data: any) => {
       if (data?.current_question_order) {
@@ -392,10 +454,14 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       if (data?.message) {
         setChatMessages((prev) => {
           const incomingId = typeof data?.id === "string" ? data.id : undefined;
+
+          // Check if this message already exists (prevents duplicates from broadcast)
           if (incomingId && prev.some((msg) => msg.id === incomingId)) {
             return prev;
           }
 
+          // Just append - if this is from current user, it should have been replaced
+          // by POST response already. If from others, append it.
           return [
             ...prev,
             toChatLine({
@@ -409,17 +475,25 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       }
     };
 
-    wsService.on("QUESTION_CHANGED", handleQuestionChanged);
-    wsService.on("GAME_STARTED", handleGameStarted);
-    wsService.on("PLAYER_ANSWERED", handlePlayerAnswered);
-    wsService.on("GAME_ENDED", handleGameEnded);
-    wsService.on("CHAT_MESSAGE", handleChatMessage);
+    const connectRealtime = async () => {
+      const accessToken = await ensureFreshAccessToken();
+      if (cancelled || !accessToken) return;
 
-    wsService.connect(accessToken, roomCode).catch(err => {
-      console.error("Failed to connect websocket:", err);
-    });
+      wsService.on("QUESTION_CHANGED", handleQuestionChanged);
+      wsService.on("GAME_STARTED", handleGameStarted);
+      wsService.on("PLAYER_ANSWERED", handlePlayerAnswered);
+      wsService.on("GAME_ENDED", handleGameEnded);
+      wsService.on("CHAT_MESSAGE", handleChatMessage);
+
+      wsService.connect(accessToken, roomCode).catch(err => {
+        console.error("Failed to connect websocket:", err);
+      });
+    };
+
+    void connectRealtime();
 
     return () => {
+      cancelled = true;
       if (shakeTimeoutRef.current) {
         clearTimeout(shakeTimeoutRef.current);
         shakeTimeoutRef.current = null;
@@ -444,7 +518,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
         timerIntervalRef.current = null;
       }
     };
-  }, [roomCode, router, toChatLine]);
+  }, [roomCode, router, toChatLine, ensureFreshAccessToken]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -667,16 +741,60 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     try {
       setIsSendingChat(true);
       setError(null);
-      const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
-      if (!accessToken) {
-        throw new Error("Thiếu access token để gửi chat realtime.");
-      }
 
-      if (!wsService.isConnected()) {
-        await wsService.connect(accessToken, roomCode);
-      }
+      // Show optimistic message immediately
+      const optimisticMessageId = `local-${Date.now()}`;
+      const optimisticMessage = {
+        id: optimisticMessageId,
+        user_id: user?.id,
+        user: { id: user?.id, username: user?.username },
+        message: text,
+      };
 
-      wsService.emit("CHAT_MESSAGE", { message: text });
+      // Track this optimistic message so we can replace it when server responds
+      pendingOptimisticMessageIdRef.current = optimisticMessageId;
+      setChatMessages((prev) => mergeChatMessages(prev, [toChatLine(optimisticMessage)]));
+
+      try {
+        // Send message to server
+        const savedMessage = await gameService.postChatMessage(roomCode, { message: text });
+
+        // Replace optimistic message with real message from server response
+        // This way we don't wait for broadcast and avoid duplicates
+        setChatMessages((prev) => {
+          const index = prev.findIndex((msg) => msg.id === optimisticMessageId);
+          if (index !== -1) {
+            const updated = [...prev];
+            updated[index] = toChatLine({
+              id: savedMessage.id,
+              user_id: savedMessage.user_id,
+              user: savedMessage.user,
+              message: savedMessage.message,
+            });
+            pendingOptimisticMessageIdRef.current = null;
+            return updated;
+          }
+          return prev;
+        });
+      } catch (chatError: any) {
+        // If network error (no response), try WebSocket fallback
+        if (!chatError?.response) {
+          const accessToken = await ensureFreshAccessToken();
+          if (accessToken) {
+            if (!wsService.isConnected()) {
+              await wsService.connect(accessToken, roomCode);
+            }
+            wsService.emit("CHAT_MESSAGE", { message: text });
+          } else {
+            throw chatError;
+          }
+        } else {
+          // If HTTP error (with response), remove optimistic message and show error
+          setChatMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessageId));
+          pendingOptimisticMessageIdRef.current = null;
+          throw chatError;
+        }
+      }
       setChatInput("");
     } catch (err) {
       setError(getErrorMessage(err, "Không gửi được tin nhắn. Vui lòng thử lại."));

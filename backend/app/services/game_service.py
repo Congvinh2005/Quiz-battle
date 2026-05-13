@@ -1146,53 +1146,7 @@ def get_room_chat(room_code: str, db: Session, limit: int = 50, offset: int = 0)
 
 async def post_chat_message(room_code: str, current_user: UUID, payload: dict, db: Session) -> dict:
 	"""Post a chat message to room"""
-	cached_meta = redis_manager.get_room_meta(room_code)
-	if cached_meta:
-		if not cached_meta.get("chat_enabled"):
-			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat is disabled in this room")
-
-		player = redis_manager.get_player(room_code, str(current_user))
-		if not player or player.get("status") == "LEFT":
-			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not in this room")
-
-		message_text = payload.get("message", "").strip()
-		if not message_text:
-			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message cannot be empty")
-
-		if len(message_text) > 500:
-			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is too long")
-
-		message = ChatMessage(
-			room_id=UUID(str(cached_meta.get("id"))),
-			user_id=current_user,
-			message=message_text
-		)
-		db.add(message)
-		db.commit()
-		db.refresh(message)
-
-		chat_payload = {
-			"id": str(message.id),
-			"room_id": str(message.room_id),
-			"user_id": str(message.user_id),
-			"message": message.message,
-			"created_at": message.created_at,
-			"updated_at": message.updated_at,
-			"user": {
-				"id": str(current_user),
-				"username": player.get("display_name"),
-			},
-		}
-		await manager.broadcast(
-			room_code,
-			{
-				"type": "CHAT_MESSAGE",
-				"data": chat_payload,
-			},
-		)
-
-		return chat_payload
-
+	# Always query database first to get authoritative room data
 	room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
 	if not room:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
@@ -1200,14 +1154,21 @@ async def post_chat_message(room_code: str, current_user: UUID, payload: dict, d
 	if not room.chat_enabled:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat is disabled in this room")
 
-	# Verify user is in room
-	player = db.query(RoomPlayer).filter(
+	# Verify user is in room (check database first, then Redis cache for status)
+	player_db = db.query(RoomPlayer).filter(
 		RoomPlayer.room_id == room.id,
 		RoomPlayer.user_id == current_user
 	).first()
-	if not player:
+	
+	if not player_db:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not in this room")
 
+	# Check Redis for player status (optional, for real-time validation)
+	player_redis = redis_manager.get_player(room_code, str(current_user))
+	if player_redis and player_redis.get("status") == "LEFT":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You have left this room")
+
+	# Validate message
 	message_text = payload.get("message", "").strip()
 	if not message_text:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message cannot be empty")
@@ -1215,8 +1176,9 @@ async def post_chat_message(room_code: str, current_user: UUID, payload: dict, d
 	if len(message_text) > 500:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is too long")
 
+	# Create message using database room ID
 	message = ChatMessage(
-		room_id=room.id,
+		room_id=room.id,  # Use authoritative database room ID
 		user_id=current_user,
 		message=message_text
 	)
@@ -1224,16 +1186,32 @@ async def post_chat_message(room_code: str, current_user: UUID, payload: dict, d
 	db.commit()
 	db.refresh(message)
 
-	# Broadcast CHAT_MESSAGE
+	# Build response with player info
+	player_display_name = player_redis.get("display_name") if player_redis else player_db.display_name if hasattr(player_db, 'display_name') else "Unknown"
+	
+	chat_payload = {
+		"id": str(message.id),
+		"room_id": str(message.room_id),
+		"user_id": str(message.user_id),
+		"message": message.message,
+		"created_at": message.created_at,
+		"updated_at": message.updated_at,
+		"user": {
+			"id": str(current_user),
+			"username": player_display_name,
+		},
+	}
+	
+	# Broadcast to all connected players
 	await manager.broadcast(
 		room_code,
 		{
 			"type": "CHAT_MESSAGE",
-			"data": _serialize_chat_message(message),
+			"data": chat_payload,
 		},
 	)
 
-	return _serialize_chat_message(message)
+	return chat_payload
 
 
 async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: Session) -> dict:

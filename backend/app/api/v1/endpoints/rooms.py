@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
+import logging
 
 from app.db.session import get_db
 from app.api.dependencies import get_current_user
+from app.schemas.room import ChatMessagePayload, ChatMessageResponse
 from app.services.game_service import (
     create_room as create_room_service,
     get_room as get_room_service,
@@ -20,6 +22,8 @@ from app.services.game_service import (
     next_question as next_question_service,
     finish_game as finish_game_service,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
@@ -90,5 +94,23 @@ def get_room_chat(room_code: str, limit: int = 50, offset: int = 0, db: Session 
 
 
 @router.post("/{room_code}/chat", response_model=dict)
-async def post_chat_message(room_code: str, payload: dict, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
-    return await post_chat_message_service(room_code, current_user, payload, db)
+async def post_chat_message(
+    room_code: str, 
+    payload: ChatMessagePayload, 
+    current_user: UUID = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"Chat message received - Room: {room_code}, User: {current_user}, Message: {payload.message[:50]}")
+        result = await post_chat_message_service(room_code, current_user, payload.dict(), db)
+        logger.info(f"Chat message posted successfully - Message ID: {result.get('id')}")
+        return result
+    except HTTPException as e:
+        logger.warning(f"HTTPException in post_chat_message: {e.status_code} - {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in post_chat_message: {type(e).__name__}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error posting chat message: {str(e)}"
+        )
