@@ -593,6 +593,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const questionOrder = roomState?.game_state.current_question_order ?? roomState?.settings.current_question_order ?? 1;
   const totalQuestions = roomState?.game_state.total_questions ?? roomState?.quiz.question_count ?? 0;
   const roomStatus = roomState?.game_state.status ?? roomState?.room.status ?? "WAITING";
+  const isChatEnabled = roomState?.settings?.chat_enabled === true;
   const myScore = myLeaderboardItem?.score ?? "0";
   const myRank = myLeaderboardItem?.rank ?? "-";
   const isHost = user?.id === roomState?.room?.host_id;
@@ -861,40 +862,42 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       </div>
 
       <div className="game-body">
-        <aside className="chat-card">
-          <div className="chat-title">
-            💬 Chat phòng <span className="chat-live">LIVE</span>
-          </div>
-          <div className="chat-messages" ref={chatMessagesRef}>
-            {chatMessages.map((message, index) => (
-              <div
-                className={`chat-msg-row ${message.userId === user?.id ? "me" : "other"}${message.isHost ? " host" : ""}`}
-                key={message.id || `${message.name}-${index}`}
-              >
-                <div className="chat-msg-bubble">
-                  <div className="chat-msg-meta">
-                    <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
-                    {message.isHost && <span className="chat-host-badge">HOST</span>}
+        {isChatEnabled && (
+          <aside className="chat-card">
+            <div className="chat-title">
+              💬 Chat phòng <span className="chat-live">LIVE</span>
+            </div>
+            <div className="chat-messages" ref={chatMessagesRef}>
+              {chatMessages.map((message, index) => (
+                <div
+                  className={`chat-msg-row ${message.userId === user?.id ? "me" : "other"}${message.isHost ? " host" : ""}`}
+                  key={message.id || `${message.name}-${index}`}
+                >
+                  <div className="chat-msg-bubble">
+                    <div className="chat-msg-meta">
+                      <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
+                      {message.isHost && <span className="chat-host-badge">HOST</span>}
+                    </div>
+                    <div className="chat-msg-text">{message.text}</div>
                   </div>
-                  <div className="chat-msg-text">{message.text}</div>
                 </div>
-              </div>
-            ))}
-            {!chatMessages.length && !isLoading && <div className="chat-empty">Chưa có tin nhắn nào.</div>}
-          </div>
-          <form className="chat-input-row" onSubmit={handleSendChat}>
-            <input
-              className="chat-input"
-              placeholder="Nhắn gì đó..."
-              value={chatInput}
-              onChange={(event) => setChatInput(event.target.value)}
-              disabled={isSendingChat}
-            />
-            <button className="chat-send" type="submit" disabled={isSendingChat}>
-              ➤
-            </button>
-          </form>
-        </aside>
+              ))}
+              {!chatMessages.length && !isLoading && <div className="chat-empty">Chưa có tin nhắn nào.</div>}
+            </div>
+            <form className="chat-input-row" onSubmit={handleSendChat}>
+              <input
+                className="chat-input"
+                placeholder="Nhắn gì đó..."
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                disabled={isSendingChat}
+              />
+              <button className="chat-send" type="submit" disabled={isSendingChat}>
+                ➤
+              </button>
+            </form>
+          </aside>
+        )}
 
         <main className="game-content">
           <div className="question-card">

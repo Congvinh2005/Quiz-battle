@@ -80,6 +80,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     return err?.response?.data?.detail || err?.message || fallback;
   }, []);
   const hostUserId = room?.host_id || null;
+  const isChatEnabled = room?.settings?.chat_enabled === true;
 
   const toChatLine = useCallback((message: any, overrideHostUserId?: string | null): ChatLine => {
     const userId = message?.user_id || message?.user?.id;
@@ -647,7 +648,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             </div>
           </div>
 
-          {currentUserInRoom && (
+          {currentUserInRoom && isChatEnabled && (
             <div className="chat-card">
               <div className="chat-title">
                 💬 Chat phòng <span className="chat-live">LIVE</span>
