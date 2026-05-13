@@ -184,7 +184,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     }, 350);
   }, []);
   const hostUserId = roomState?.room?.host_id || null;
-  
+
   const toChatLine = useCallback((message: any, overrideHostUserId?: string | null): ChatLine => {
     const userId = message?.user_id || message?.user?.id;
     const effectiveHostId = overrideHostUserId !== undefined ? overrideHostUserId : hostUserId;

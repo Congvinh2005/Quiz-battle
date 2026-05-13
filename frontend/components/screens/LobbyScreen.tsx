@@ -80,7 +80,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     return err?.response?.data?.detail || err?.message || fallback;
   }, []);
   const hostUserId = room?.host_id || null;
-  
+
   const toChatLine = useCallback((message: any, overrideHostUserId?: string | null): ChatLine => {
     const userId = message?.user_id || message?.user?.id;
     const effectiveHostId = overrideHostUserId !== undefined ? overrideHostUserId : hostUserId;
