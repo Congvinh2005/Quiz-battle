@@ -50,18 +50,45 @@ function formatDate(value?: string) {
 }
 
 function getQuestionCount(quiz: Quiz) {
-  return quiz.questions?.length ?? 0;
+  return quiz.question_count ?? quiz.questions?.length ?? 0;
+}
+
+function getApiErrorMessage(err: unknown, fallback: string) {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+
+  if (status === 401) {
+    return "Phiên đăng nhập đã hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại.";
+  }
+
+  if (status === 403) {
+    return "Bạn không có quyền truy cập dữ liệu quiz này.";
+  }
+
+  return fallback;
 }
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [joinCode, setJoinCode] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Quiz[] | null>(null);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      setIsLoading(false);
+      setError("Bạn chưa đăng nhập. Đang chuyển về trang đăng nhập...");
+      router.push("/");
+      return;
+    }
+
     const loadQuizzes = async () => {
       try {
         setIsLoading(true);
@@ -69,14 +96,14 @@ export default function DashboardScreen() {
         const data = await quizService.getAllQuizzes();
         setQuizzes(data);
       } catch (err) {
-        setError("Không tải được danh sách quiz. Kiểm tra backend hoặc đăng nhập rồi thử lại.");
+        setError(getApiErrorMessage(err, "Không tải được danh sách quiz. Kiểm tra backend rồi thử lại."));
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadQuizzes();
-  }, []);
+    void loadQuizzes();
+  }, [isAuthLoading, user, router]);
 
   const myQuizzes = useMemo(
     () => quizzes.filter((quiz) => quiz.created_by === user?.id),
@@ -108,6 +135,30 @@ export default function DashboardScreen() {
     router.push(`/room/${code}`);
   };
 
+  const handleSearch = async () => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults(null);
+      return;
+    }
+
+    if (!user) {
+      setError("Bạn chưa đăng nhập. Vui lòng đăng nhập để tìm quiz.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const results = await quizService.searchQuizzes(q);
+      setSearchResults(results);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Lỗi khi tìm quiz. Vui lòng thử lại sau."));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="home-wrap">
       <section className="home-hero">
@@ -126,10 +177,66 @@ export default function DashboardScreen() {
             <button className="btn-hero-secondary" onClick={() => document.getElementById("join-room")?.focus()}>
               🔍 Join phòng
             </button>
+            <div className="hero-search">
+              <input
+                className="hero-search-input"
+                placeholder="Tìm quiz theo tên..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleSearch();
+                  }
+                }}
+              />
+              <button className="btn-hero-secondary" onClick={() => void handleSearch()}>
+                🔎 Tìm
+              </button>
+            </div>
             <button className="btn-hero-secondary" onClick={() => router.push("/editor")}>
               + Tạo quiz mới
             </button>
           </div>
+
+          {searchResults && (
+            <>
+              <div className="section-header" style={{ marginTop: 28 }}>
+                <span className="section-title">🔎 Kết quả tìm kiếm</span>
+                <button className="section-action" onClick={() => setSearchResults(null)}>
+                  Đóng
+                </button>
+              </div>
+              <div className="quiz-grid">
+                {searchResults.length > 0 ? (
+                  searchResults.map((quiz) => (
+                    <article className="quiz-card" key={quiz.id}>
+                      <div className="quiz-card-title">{quiz.title}</div>
+                      <div className="quiz-card-meta">
+                        <span>{getQuestionCount(quiz) || "Chưa rõ"} câu hỏi</span>
+                        <span>{quiz.description || "Chưa có mô tả"}</span>
+                      </div>
+                      <div className="quiz-card-tags">
+                        <span className="tag">{quiz.is_public ? "Public" : "Private"}</span>
+                      </div>
+                      <div className="quiz-card-footer">
+                        <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
+                        <button className="play-btn" onClick={() => router.push(`/create-room?quizId=${quiz.id}`)}>
+                          ▶ Dùng ngay
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <article className="quiz-card">
+                    <div className="quiz-card-title">Không tìm thấy quiz phù hợp</div>
+                    <div className="quiz-card-meta">
+                      <span>Thử các từ khóa khác hoặc kiểm tra chính tả.</span>
+                    </div>
+                  </article>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="hero-stats">

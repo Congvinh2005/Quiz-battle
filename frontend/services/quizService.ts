@@ -66,6 +66,16 @@ export const quizService = {
     return response.data;
   },
 
+  // Search quizzes by title
+  searchQuizzes: async (q: string): Promise<Quiz[]> => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const response = await apiClient.get<Quiz[]>("/quizzes/search", {
+      params: { q },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    return response.data;
+  },
+
   // Add question
   addQuestion: async (quizId: string, data: Partial<Question>): Promise<Question> => {
     const response = await apiClient.post<Question>(`/quizzes/${quizId}/questions`, data);

@@ -9,6 +9,7 @@ from app.services.quiz_service import (
     delete_quiz as delete_quiz_service,
     get_quiz_detail as get_quiz_detail_service,
     list_quizzes as list_quizzes_service,
+    search_quizzes as search_quizzes_service,
     update_quiz_with_questions,
 )
 
@@ -21,6 +22,15 @@ def list_quizzes(
     db: Session = Depends(get_db),
 ):
     return list_quizzes_service(db, current_user)
+
+
+@router.get("/search", response_model=list)
+def search_quizzes(
+    q: str,
+    current_user: UUID = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return search_quizzes_service(db, current_user, q)
 
 
 @router.get("/{quiz_id}", response_model=dict)

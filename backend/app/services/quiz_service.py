@@ -72,6 +72,23 @@ def list_quizzes(db: Session, current_user: UUID) -> list:
 	return [_serialize_quiz_summary(quiz, question_count, time_limit_sum) for quiz, question_count, time_limit_sum in quizzes]
 
 
+def search_quizzes(db: Session, current_user: UUID, query: str) -> list:
+	q = f"%{query}%"
+	quizzes = (
+		db.query(
+			Quiz,
+			func.count(Question.id).label("question_count"),
+			func.coalesce(func.sum(Question.time_limit), 0).label("time_limit_sum"),
+		)
+		.outerjoin(Question, Question.quiz_id == Quiz.id)
+		.filter(((Quiz.created_by == current_user) | (Quiz.is_public.is_(True))) & Quiz.title.ilike(q))
+		.group_by(Quiz.id)
+		.all()
+	)
+
+	return [_serialize_quiz_summary(quiz, question_count, time_limit_sum) for quiz, question_count, time_limit_sum in quizzes]
+
+
 def get_quiz_detail(quiz_id: UUID, current_user: UUID, db: Session) -> dict:
 	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
 	if not quiz:

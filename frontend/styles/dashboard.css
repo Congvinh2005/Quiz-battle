@@ -93,6 +93,27 @@
   background: rgba(124, 58, 237, 0.08);
 }
 
+.hero-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.hero-search-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  min-width: 220px;
+  background: #fff;
+  outline: none;
+  font-family: "DM Sans", sans-serif;
+}
+
+.hero-search-input:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.08);
+}
+
 .hero-stats {
   display: flex;
   gap: 16px;
