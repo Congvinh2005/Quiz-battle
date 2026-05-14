@@ -277,12 +277,24 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       }
     };
 
-    const handlePlayerJoined = (data: any) => {
+    const handlePlayerJoined = async (data: any) => {
       applyRoomState(data);
+      try {
+        const refreshed = await gameService.getRoomByCode(roomCode);
+        if (refreshed) setRoom(refreshed);
+      } catch {
+        // ignore refresh errors
+      }
     };
 
-    const handlePlayerLeft = (data: any) => {
+    const handlePlayerLeft = async (data: any) => {
       applyRoomState(data);
+      try {
+        const refreshed = await gameService.getRoomByCode(roomCode);
+        if (refreshed) setRoom(refreshed);
+      } catch {
+        // ignore refresh errors
+      }
     };
 
     const handleGameStarted = (data: any) => {
@@ -648,7 +660,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             </div>
           </div>
 
-          {currentUserInRoom && isChatEnabled && (
+          {isChatEnabled && (
             <div className="chat-card">
               <div className="chat-title">
                 💬 Chat phòng <span className="chat-live">LIVE</span>
@@ -673,15 +685,20 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
               <form className="chat-input-row" onSubmit={handleSendChat}>
                 <input
                   className="chat-input"
-                  placeholder="Nhắn gì đó..."
+                  placeholder={currentUserInRoom ? "Nhắn gì đó..." : "Bạn phải tham gia để chat"}
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
-                  disabled={isSendingChat}
+                  disabled={isSendingChat || !currentUserInRoom}
                 />
-                <button className="chat-send" type="submit" disabled={isSendingChat}>
+                <button className="chat-send" type="submit" disabled={isSendingChat || !currentUserInRoom}>
                   ➤
                 </button>
               </form>
+              {!currentUserInRoom && (
+                <div className="chat-join-hint" style={{ fontSize: 12, marginTop: 8, opacity: 0.85 }}>
+                  Bạn chưa tham gia phòng — tham gia để nhắn tin.
+                </div>
+              )}
             </div>
           )}
 

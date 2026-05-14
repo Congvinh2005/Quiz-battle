@@ -91,6 +91,7 @@ function serializeLeaderboard(state: RoomStateResponse | null): LeaderboardItem[
 export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const router = useRouter();
   const { user } = useAuth();
+  console.log("GameplayScreen render, roomCode:", roomCode);
   const [roomState, setRoomState] = useState<RoomStateResponse | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatLine[]>([]);
@@ -427,6 +428,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handlePlayerAnswered = (data: any) => {
+      try { console.debug("Gameplay handler PLAYER_ANSWERED ->", data); } catch(e) {}
       if (data?.leaderboard) {
         setRoomState(prev => {
           if (!prev) return prev;
@@ -438,7 +440,28 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
             },
           };
         });
+        return;
       }
+
+      // Fallback: if server did not include leaderboard in the event,
+      // fetch the latest leaderboard from the API so UI updates in real-time.
+      void (async () => {
+        try {
+          const latest = await gameService.getLeaderboard(roomCode);
+          setRoomState((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              game_state: {
+                ...prev.game_state,
+                leaderboard: latest,
+              },
+            };
+          });
+        } catch (err) {
+          // ignore fallback errors
+        }
+      })();
     };
 
     const handleGameEnded = (data: any) => {
@@ -476,8 +499,12 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const connectRealtime = async () => {
+      console.log("connectRealtime starting for roomCode:", roomCode);
       const accessToken = await ensureFreshAccessToken();
-      if (cancelled || !accessToken) return;
+      if (cancelled || !accessToken) {
+        console.log("connectRealtime cancelled or no token");
+        return;
+      }
 
       wsService.on("QUESTION_CHANGED", handleQuestionChanged);
       wsService.on("GAME_STARTED", handleGameStarted);
@@ -485,9 +512,12 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
       wsService.on("GAME_ENDED", handleGameEnded);
       wsService.on("CHAT_MESSAGE", handleChatMessage);
 
-      wsService.connect(accessToken, roomCode).catch(err => {
+      try {
+        await wsService.connect(accessToken, roomCode);
+        console.log("WebSocket connected successfully for room:", roomCode);
+      } catch (err) {
         console.error("Failed to connect websocket:", err);
-      });
+      }
     };
 
     void connectRealtime();
@@ -599,7 +629,11 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const isHost = user?.id === roomState?.room?.host_id;
 
   const handleSubmitAnswer = async (selectedOptionId: string) => {
-    if (!selectedOptionId || isAnswerSubmitted || !roomCode) return;
+    console.log("handleSubmitAnswer called with:", selectedOptionId, "isAnswerSubmitted:", isAnswerSubmitted, "roomCode:", roomCode);
+    if (!selectedOptionId || isAnswerSubmitted || !roomCode) {
+      console.log("handleSubmitAnswer early return - selectedOptionId:", selectedOptionId, "isAnswerSubmitted:", isAnswerSubmitted, "roomCode:", roomCode);
+      return;
+    }
 
     try {
       setIsSubmittingAnswer(true);

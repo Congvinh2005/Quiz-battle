@@ -134,6 +134,7 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
     void loadResults();
 
     const handleLeaderboardUpdate = (payload: any) => {
+      try { console.debug("Result handler PLAYER_ANSWERED ->", payload); } catch(e) {}
       if (cancelled) return;
 
       const leaderboard = payload?.leaderboard;
@@ -141,7 +142,21 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
         applyLeaderboard(leaderboard);
         setError(null);
         setIsLoading(false);
+        return;
       }
+
+      // Fallback: fetch results if payload doesn't include leaderboard
+      void (async () => {
+        try {
+          const latest = await gameService.getGameResults(roomCode);
+          if (cancelled) return;
+          applyLeaderboard(latest as any[]);
+          setError(null);
+          setIsLoading(false);
+        } catch (err) {
+          // keep existing error state
+        }
+      })();
     };
 
     const handleGameEnded = async () => {

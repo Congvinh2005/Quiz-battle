@@ -50,12 +50,15 @@ class WebSocketService {
   connect(token: string, roomCode: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        const wsUrl = buildWebSocketUrl(roomCode, token);
+        // console.log("WebSocket connecting to:", wsUrl);
         this.currentToken = token;
         this.currentRoomCode = roomCode;
         this.shouldReconnect = true;
         this.clearReconnectTimer();
 
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          // console.log("WebSocket already connected");
           resolve();
           return;
         }
@@ -69,7 +72,7 @@ class WebSocketService {
           this.socket = null;
         }
 
-        this.socket = new WebSocket(buildWebSocketUrl(roomCode, token));
+        this.socket = new WebSocket(wsUrl);
 
         this.socket.onopen = () => {
           console.log("WebSocket connected");
@@ -94,6 +97,12 @@ class WebSocketService {
         this.socket.onmessage = (event) => {
           try {
             const parsed: WSRoomEvent = JSON.parse(event.data);
+            // Debug: log incoming websocket events
+            try {
+              console.debug("WS recv:", parsed.type, parsed.data);
+            } catch (e) {
+              // ignore debug errors
+            }
             this.notifyListeners(parsed.type, parsed.data);
           } catch (error) {
             console.error("Failed to parse websocket message:", error);
@@ -149,6 +158,11 @@ class WebSocketService {
   }
 
   private notifyListeners(eventType: string, data: any): void {
+    // Debug: log dispatch
+    try {
+      console.debug("WS dispatch:", eventType);
+    } catch (e) { }
+
     if (this.listeners.has(eventType)) {
       this.listeners.get(eventType)!.forEach((callback) => {
         try {
