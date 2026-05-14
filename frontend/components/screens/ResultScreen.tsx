@@ -134,7 +134,7 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
     void loadResults();
 
     const handleLeaderboardUpdate = (payload: any) => {
-      try { console.debug("Result handler PLAYER_ANSWERED ->", payload); } catch(e) {}
+      try { console.debug("Result handler PLAYER_ANSWERED ->", payload); } catch (e) { }
       if (cancelled) return;
 
       const leaderboard = payload?.leaderboard;

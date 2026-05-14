@@ -428,7 +428,7 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     };
 
     const handlePlayerAnswered = (data: any) => {
-      try { console.debug("Gameplay handler PLAYER_ANSWERED ->", data); } catch(e) {}
+      try { console.debug("Gameplay handler PLAYER_ANSWERED ->", data); } catch (e) { }
       if (data?.leaderboard) {
         setRoomState(prev => {
           if (!prev) return prev;
