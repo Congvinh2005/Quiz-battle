@@ -27,6 +27,8 @@ const recentActivities = [
   },
 ];
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 function getGreeting() {
   const hour = new Date().getHours();
 
@@ -67,6 +69,16 @@ function getApiErrorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim();
+}
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -75,7 +87,7 @@ export default function DashboardScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Quiz[] | null>(null);
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -105,6 +117,14 @@ export default function DashboardScreen() {
     void loadQuizzes();
   }, [isAuthLoading, user, router]);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setAppliedSearchQuery(searchQuery.trim());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
   const myQuizzes = useMemo(
     () => quizzes.filter((quiz) => quiz.created_by === user?.id),
     [quizzes, user?.id]
@@ -124,6 +144,20 @@ export default function DashboardScreen() {
     [quizzes, user?.id]
   );
 
+  const filteredMyQuizzes = useMemo(() => {
+    if (!appliedSearchQuery) return myQuizzes;
+
+    const normalizedQuery = normalizeSearchText(appliedSearchQuery);
+    return myQuizzes.filter((quiz) => normalizeSearchText(quiz.title).includes(normalizedQuery));
+  }, [myQuizzes, appliedSearchQuery]);
+
+  const filteredPublicQuizzes = useMemo(() => {
+    if (!appliedSearchQuery) return publicQuizzes;
+
+    const normalizedQuery = normalizeSearchText(appliedSearchQuery);
+    return publicQuizzes.filter((quiz) => normalizeSearchText(quiz.title).includes(normalizedQuery));
+  }, [publicQuizzes, appliedSearchQuery]);
+
   const pendingQuizCount = myQuizzes.length || 3;
   const displayName = user?.username || "Minh Khoa";
 
@@ -135,28 +169,8 @@ export default function DashboardScreen() {
     router.push(`/room/${code}`);
   };
 
-  const handleSearch = async () => {
-    const q = searchQuery.trim();
-    if (!q) {
-      setSearchResults(null);
-      return;
-    }
-
-    if (!user) {
-      setError("Bạn chưa đăng nhập. Vui lòng đăng nhập để tìm quiz.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      const results = await quizService.searchQuizzes(q);
-      setSearchResults(results);
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Lỗi khi tìm quiz. Vui lòng thử lại sau."));
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSearch = () => {
+    setAppliedSearchQuery(searchQuery.trim());
   };
 
   return (
@@ -185,58 +199,19 @@ export default function DashboardScreen() {
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
-                    void handleSearch();
+                    handleSearch();
                   }
                 }}
               />
-              <button className="btn-hero-secondary" onClick={() => void handleSearch()}>
+              {/* <button className="btn-hero-secondary" onClick={handleSearch}>
                 🔎 Tìm
-              </button>
+              </button> */}
             </div>
             <button className="btn-hero-secondary" onClick={() => router.push("/editor")}>
               + Tạo quiz mới
             </button>
           </div>
 
-          {searchResults && (
-            <>
-              <div className="section-header" style={{ marginTop: 28 }}>
-                <span className="section-title">🔎 Kết quả tìm kiếm</span>
-                <button className="section-action" onClick={() => setSearchResults(null)}>
-                  Đóng
-                </button>
-              </div>
-              <div className="quiz-grid">
-                {searchResults.length > 0 ? (
-                  searchResults.map((quiz) => (
-                    <article className="quiz-card" key={quiz.id}>
-                      <div className="quiz-card-title">{quiz.title}</div>
-                      <div className="quiz-card-meta">
-                        <span>{getQuestionCount(quiz) || "Chưa rõ"} câu hỏi</span>
-                        <span>{quiz.description || "Chưa có mô tả"}</span>
-                      </div>
-                      <div className="quiz-card-tags">
-                        <span className="tag">{quiz.is_public ? "Public" : "Private"}</span>
-                      </div>
-                      <div className="quiz-card-footer">
-                        <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
-                        <button className="play-btn" onClick={() => router.push(`/create-room?quizId=${quiz.id}`)}>
-                          ▶ Dùng ngay
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <article className="quiz-card">
-                    <div className="quiz-card-title">Không tìm thấy quiz phù hợp</div>
-                    <div className="quiz-card-meta">
-                      <span>Thử các từ khóa khác hoặc kiểm tra chính tả.</span>
-                    </div>
-                  </article>
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         <div className="hero-stats">
@@ -268,8 +243,8 @@ export default function DashboardScreen() {
                   <span>Vui lòng chờ trong giây lát</span>
                 </div>
               </div>
-            ) : myQuizzes.length > 0 ? (
-              myQuizzes.map((quiz) => (
+            ) : filteredMyQuizzes.length > 0 ? (
+              filteredMyQuizzes.map((quiz) => (
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
@@ -315,9 +290,15 @@ export default function DashboardScreen() {
               ))
             ) : (
               <article className="quiz-card">
-                <div className="quiz-card-title">Chưa có quiz nào</div>
+                <div className="quiz-card-title">
+                  {appliedSearchQuery ? "Không có quiz phù hợp trong Quiz của tôi" : "Chưa có quiz nào"}
+                </div>
                 <div className="quiz-card-meta">
-                  <span>Tạo quiz đầu tiên để dashboard hiển thị dữ liệu thật.</span>
+                  <span>
+                    {appliedSearchQuery
+                      ? "Thử từ khóa khác hoặc bấm Tìm với từ khóa mới."
+                      : "Tạo quiz đầu tiên để dashboard hiển thị dữ liệu thật."}
+                  </span>
                 </div>
                 <div className="quiz-card-tags">
                   <span className="tag gold">Bắt đầu</span>
@@ -331,10 +312,6 @@ export default function DashboardScreen() {
               </article>
             )}
 
-            <button className="quiz-card quiz-create-card" onClick={() => router.push("/editor")}>
-              <div className="quiz-create-icon">+</div>
-              <div className="quiz-create-text">Tạo quiz mới</div>
-            </button>
           </div>
 
           <div className="section-header" style={{ marginTop: 28 }}>
@@ -342,8 +319,8 @@ export default function DashboardScreen() {
             <button className="section-action">Xem tất cả →</button>
           </div>
           <div className="quiz-grid">
-            {publicQuizzes.length > 0 ? (
-              publicQuizzes.map((quiz) => (
+            {filteredPublicQuizzes.length > 0 ? (
+              filteredPublicQuizzes.map((quiz) => (
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
@@ -364,9 +341,15 @@ export default function DashboardScreen() {
               ))
             ) : (
               <article className="quiz-card">
-                <div className="quiz-card-title">Chưa có quiz public</div>
+                <div className="quiz-card-title">
+                  {appliedSearchQuery ? "Không có quiz phù hợp trong Thư viện công khai" : "Chưa có quiz public"}
+                </div>
                 <div className="quiz-card-meta">
-                  <span>Chưa có quiz công khai từ người dùng khác.</span>
+                  <span>
+                    {appliedSearchQuery
+                      ? "Thử từ khóa khác để tìm quiz công khai."
+                      : "Chưa có quiz công khai từ người dùng khác."}
+                  </span>
                 </div>
                 <div className="quiz-card-tags">
                   <span className="tag">Trống</span>
