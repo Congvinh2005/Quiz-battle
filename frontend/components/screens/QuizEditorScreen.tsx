@@ -10,6 +10,7 @@ interface QuizEditorScreenProps {
 }
 
 type QuestionType = "MCQ" | "TRUE_FALSE";
+type SetupMode = "sample" | "blank" | "import";
 
 interface EditorQuestion {
   id: string;
@@ -54,6 +55,16 @@ const initialQuestions: EditorQuestion[] = [
   },
 ];
 
+const blankQuestion: EditorQuestion = {
+  id: "q1",
+  text: "",
+  type: "MCQ",
+  timeLimit: 30,
+  points: 100,
+  options: ["", "", "", ""],
+  correctIndex: 0,
+};
+
 function normalizeOptions(type: QuestionType, options?: string[]) {
   if (type === "TRUE_FALSE") return ["Đúng", "Sai", "", ""];
   return options?.length === 4 ? options : ["", "", "", ""];
@@ -67,6 +78,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(quizId ? true : false);
+  const [showSetup, setShowSetup] = useState(!quizId);
+  const [selectedSetupMode, setSelectedSetupMode] = useState<SetupMode | null>(null);
+  const [importFileName, setImportFileName] = useState("");
 
   useEffect(() => {
     if (!quizId) return;
@@ -145,6 +159,34 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
     setQuestions((current) => [...current, newQuestion]);
     setActiveIndex(questions.length);
+  };
+
+  const startWithMode = (mode: SetupMode) => {
+    setSelectedSetupMode(mode);
+
+    if (mode === "sample") {
+      setQuestions(initialQuestions);
+      setActiveIndex(0);
+      setShowSetup(false);
+      return;
+    }
+
+    if (mode === "blank") {
+      setQuestions([{ ...blankQuestion, id: `q${Date.now()}` }]);
+      setActiveIndex(0);
+      setShowSetup(false);
+      return;
+    }
+
+    // UI phase only: import parsing flow will be implemented in the next step.
+    setQuestions([{ ...blankQuestion, id: `q${Date.now()}` }]);
+    setActiveIndex(0);
+    setShowSetup(false);
+  };
+
+  const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setImportFileName(file?.name ?? "");
   };
 
   const handleDeleteQuestion = () => {
@@ -266,6 +308,65 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     );
   }
 
+  if (showSetup) {
+    return (
+      <div className="editor-wrap setup-mode">
+        <main className="editor-main setup-main">
+          <div className="setup-panel">
+            <div className="setup-kicker">Tạo Quiz</div>
+            <h1 className="setup-title">Bạn muốn thêm câu hỏi theo cách nào cho bộ Quiz?</h1>
+            <p className="setup-sub">Chọn 1 trong 3 cách dưới đây.</p>
+
+            <div className="setup-option-grid">
+              <button
+                className={`setup-option-card${selectedSetupMode === "sample" ? " active" : ""}`}
+                onClick={() => startWithMode("sample")}
+              >
+                <div className="setup-option-icon">✨</div>
+                <div className="setup-option-title">Dùng 3 câu mẫu</div>
+                <div className="setup-option-desc">Giữ nguyên 3 câu demo như hiện tại để chỉnh sửa nhanh.</div>
+              </button>
+
+              <button
+                className={`setup-option-card${selectedSetupMode === "blank" ? " active" : ""}`}
+                onClick={() => startWithMode("blank")}
+              >
+                <div className="setup-option-icon">🧩</div>
+                <div className="setup-option-title">Bắt đầu trống</div>
+                <div className="setup-option-desc">Không có câu mẫu nào, tạo câu hỏi từ đầu.</div>
+              </button>
+
+              <div className={`setup-option-card import-card${selectedSetupMode === "import" ? " active" : ""}`}>
+                <div className="setup-option-icon">📥</div>
+                <div className="setup-option-title">Import từ file</div>
+                <div className="setup-option-desc">
+                  Hỗ trợ giao diện nhập từ Excel hoặc Word. Bước parser sẽ làm tiếp sau.
+                </div>
+
+                <label className="import-file-picker">
+                  Chọn file (.xlsx, .xls, .csv, .doc, .docx)
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv,.doc,.docx"
+                    onChange={handleImportFileChange}
+                  />
+                </label>
+
+                <div className="import-file-name">{importFileName || "Chưa chọn file"}</div>
+
+                <div className="import-preview-note">
+                  Khi xử lý thật: hệ thống sẽ tự chuyển thành câu hỏi + 4 đáp án hoặc đúng/sai theo dữ liệu đầu vào.
+                </div>
+
+                <button className="import-continue-btn" onClick={() => startWithMode("import")}>Tiếp tục với file</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="editor-wrap">
       <aside className="editor-sidebar">
@@ -315,6 +416,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
           <h1 className="em-title">
             {quizId ? "Chỉnh sửa quiz" : "Câu hỏi"} {activeIndex + 1} / {questions.length}
           </h1>
+          {selectedSetupMode && !quizId ? <div className="editor-mode-badge">Mode: {selectedSetupMode}</div> : null}
           <div className="editor-header-actions">
             <button className="editor-icon-btn" onClick={handleDeleteQuestion}>
               🗑 Xóa
