@@ -149,6 +149,9 @@ const LANDING_HTML = `<!DOCTYPE html>
     body {
       min-height: max(884px, 100dvh);
     }
+    html {
+      scroll-behavior: smooth;
+    }
   </style>
   </head>
 <body class="bg-background text-on-background font-body-md overflow-x-hidden">
@@ -159,7 +162,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 <span class="font-display-lg text-headline-md text-primary font-bold tracking-tighter">QuizBattle</span>
 </div>
 <nav class="hidden md:flex items-center gap-lg">
-<a class="text-primary font-bold border-b-2 border-primary font-label-lg hover:text-primary transition-colors duration-200" href="#">Trang giới thiệu</a>
+<a class="text-primary font-bold border-b-2 border-primary font-label-lg hover:text-primary transition-colors duration-200" href="#top">Trang giới thiệu</a>
 <a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#features">Tính năng</a>
 <a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#how-it-works">Cách thức hoạt động</a>
 <a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#ranking">Xếp hạng</a>
@@ -170,7 +173,7 @@ const LANDING_HTML = `<!DOCTYPE html>
             </a>
 </div>
 </header>
-<main>
+<main id="top">
 <section class="relative overflow-hidden pt-2xl pb-3xl px-margin-mobile md:px-margin-desktop max-w-[1280px] mx-auto">
 <div class="grid md:grid-cols-2 gap-xl items-center">
 <div class="z-10">
@@ -202,7 +205,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 </div>
 </div>
 </section>
-<section class="py-3xl bg-surface-container-low px-margin-mobile md:px-margin-desktop" id="features">
+<section class="py-3xl bg-surface-container-low px-margin-mobile md:px-margin-desktop" id="features" style="scroll-margin-top: 96px;">
 <div class="max-w-[1280px] mx-auto">
 <div class="text-center mb-3xl">
 <h2 class="font-headline-lg text-headline-lg text-on-background mb-base">Tính năng vượt trội</h2>
@@ -318,7 +321,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 </div>
 </div>
 </section>
-<section class="py-3xl bg-primary text-white overflow-hidden">
+<section class="py-3xl bg-primary text-white overflow-hidden" id="ranking" style="scroll-margin-top: 96px;">
 <div class="max-w-[1280px] mx-auto px-margin-mobile md:px-margin-desktop">
 <div class="grid grid-cols-1 md:grid-cols-12 gap-lg">
 <div class="md:col-span-8 bg-white/10 backdrop-blur-md p-xl rounded-3xl border border-white/20">
@@ -373,7 +376,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 </div>
 </div>
 </section>
-<section class="py-3xl bg-surface-container-lowest">
+<section class="py-3xl bg-surface-container-lowest" id="community" style="scroll-margin-top: 96px;">
 <div class="max-w-[1280px] mx-auto px-margin-mobile md:px-margin-desktop text-center">
 <h2 class="font-headline-lg mb-3xl">Người chơi nói gì?</h2>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
@@ -479,6 +482,41 @@ const LANDING_HTML = `<!DOCTYPE html>
 <span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer" data-icon="share">share</span>
 </div>
 </footer>
+<script>
+  const navLinks = Array.from(document.querySelectorAll('header nav a[href^="#"]'));
+  const activeClasses = ['text-primary', 'font-bold', 'border-b-2', 'border-primary'];
+
+  function setActiveLink(activeLink) {
+    navLinks.forEach((link) => {
+      link.classList.remove(...activeClasses);
+      link.classList.add('text-on-surface-variant');
+    });
+
+    activeLink.classList.remove('text-on-surface-variant');
+    activeLink.classList.add(...activeClasses);
+  }
+
+  navLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      const href = link.getAttribute('href');
+      if (!href || href === '#') return;
+
+      const target = document.querySelector(href);
+      if (!target && href !== '#top') return;
+
+      event.preventDefault();
+      setActiveLink(link);
+
+      if (href === '#top') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      history.replaceState(null, '', href);
+    });
+  });
+</script>
 </body></html>`;
 
 export default function LandingScreen() {
