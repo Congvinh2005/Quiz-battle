@@ -400,12 +400,12 @@
 }
 
 .join-input::placeholder {
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
+  color: rgba(15, 23, 42, 0.35);
+  -webkit-text-fill-color: rgba(15, 23, 42, 0.35);
   font-size: 13px;
   letter-spacing: 0;
-  font-weight: 900;
-  opacity: 1 !important;
+  font-weight: 500;
+  opacity: 1;
 }
 
 .btn-join {

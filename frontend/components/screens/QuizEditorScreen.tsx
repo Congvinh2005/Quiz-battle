@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { quizService, QuizSavePayload } from "@/services/quizService";
 import { importQuestions } from "@/services/importService";
@@ -73,7 +73,8 @@ function normalizeOptions(type: QuestionType, options?: string[]) {
 
 export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const router = useRouter();
-  const [quizTitle, setQuizTitle] = useState("🌍 Địa Lý Thế Giới");
+  const quizTitleInputRef = useRef<HTMLInputElement>(null);
+  const [quizTitle, setQuizTitle] = useState("");
   const [visibility, setVisibility] = useState("private");
   const [questions, setQuestions] = useState<EditorQuestion[]>(initialQuestions);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -267,8 +268,17 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     setActiveIndex((current) => current - 1);
   };
 
+  const validateQuizTitle = () => {
+    if (quizTitle.trim()) return true;
+
+    alert("Vui lòng nhập tên quiz trước khi lưu.");
+    quizTitleInputRef.current?.focus();
+    return false;
+  };
+
   const handleSaveAndPlay = async () => {
     if (isSaving) return;
+    if (!validateQuizTitle()) return;
 
     setIsSaving(true);
     try {
@@ -305,6 +315,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
   const handleSaveQuiz = async () => {
     if (isSaving) return;
+    if (!validateQuizTitle()) return;
 
     setIsSaving(true);
     try {
@@ -433,8 +444,10 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
       <aside className="editor-sidebar">
         <div className="editor-quiz-box">
           <input
+            ref={quizTitleInputRef}
             className="form-input"
-            placeholder="Tên quiz..."
+            placeholder="Nhập tên quiz..."
+            required
             value={quizTitle}
             onChange={(event) => setQuizTitle(event.target.value)}
             style={{ fontFamily: "Syne, sans-serif", fontWeight: 700 }}

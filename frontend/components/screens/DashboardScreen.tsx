@@ -376,7 +376,7 @@ export default function DashboardScreen() {
               <input
                 id="join-room"
                 className="join-input"
-                placeholder="AB12CD"
+                placeholder="......."
                 maxLength={6}
                 value={joinCode}
                 onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
