@@ -37,7 +37,7 @@ export default function LoginScreen() {
       </Link>
       <div className="login-left">
         <div className="brand-badge"><span className="dot" /> Quiz đấu thời gian thực</div>
-        <h1 className="login-title">Chào mừng<br />trở lại <span>QuizBattle</span></h1>
+        <h1 className="login-title">Chào mừng trở lại <span>QuizBattle</span></h1>
         <p className="login-sub">Nền tảng đấu quiz thời gian thực. Tạo phòng, mời bạn bè và thi đấu ngay!</p>
 
         {error && (
@@ -56,11 +56,11 @@ export default function LoginScreen() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Tên đăng nhập</label>
+            <label className="form-label">Tên tài khoản</label>
             <input
               className="form-input"
               type="text"
-              placeholder="User name"
+              placeholder="Nhập tên tài khoản..."
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -72,7 +72,7 @@ export default function LoginScreen() {
               <input
                 className="form-input"
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
+                placeholder="Nhập mật khẩu..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

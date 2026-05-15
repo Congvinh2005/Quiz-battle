@@ -9,6 +9,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 <meta content="Nền tảng thi đấu trắc nghiệm trực tuyến hàng đầu. Kết nối, cạnh tranh và nâng tầm kiến thức với QuizBattle." name="description"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -138,6 +139,11 @@ const LANDING_HTML = `<!DOCTYPE html>
                 transform: translateY(2px);
                 box-shadow: 0 2px 0 0 #5B21B6;
             }
+            .hero-title-custom {
+              font-family: 'Be Vietnam Pro', sans-serif;
+              font-weight: 800;
+              line-height: 1.15;
+            }
     </style>
 <style>
     body {
@@ -153,14 +159,14 @@ const LANDING_HTML = `<!DOCTYPE html>
 <span class="font-display-lg text-headline-md text-primary font-bold tracking-tighter">QuizBattle</span>
 </div>
 <nav class="hidden md:flex items-center gap-lg">
-<a class="text-primary font-bold border-b-2 border-primary font-label-lg hover:text-primary transition-colors duration-200" href="#">Home</a>
-<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#features">Features</a>
-<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#how-it-works">How It Works</a>
-<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#ranking">Ranking</a>
-<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#community">Community</a>
+<a class="text-primary font-bold border-b-2 border-primary font-label-lg hover:text-primary transition-colors duration-200" href="#">Trang giới thiệu</a>
+<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#features">Tính năng</a>
+<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#how-it-works">Cách thức hoạt động</a>
+<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#ranking">Xếp hạng</a>
+<a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#community">Cộng đồng</a>
 </nav>
 <a class="bg-primary-container text-on-primary-container px-6 py-2 rounded-full font-label-lg font-bold active:scale-95 transition-transform" href="/login" target="_top" rel="noreferrer">
-                Play Now
+                Chơi ngay
             </a>
 </div>
 </header>
@@ -172,9 +178,11 @@ const LANDING_HTML = `<!DOCTYPE html>
 <span class="material-symbols-outlined text-[18px]">workspace_premium</span>
                         Trải nghiệm giáo dục thế hệ mới
                     </div>
-<h1 class="font-display-lg text-display-lg text-on-background mb-md">
-                        Quiz Battle: <span class="text-primary">Trải nghiệm thi đấu</span> trắc nghiệm đỉnh cao
-                    </h1>
+<h1 class="hero-title-custom text-display-lg text-on-background mb-md">
+            Quiz Battle:<br/>
+<span class="text-primary">Trải nghiệm thi đấu</span><br/>
+            trắc nghiệm đỉnh cao
+          </h1>
 <p class="font-body-lg text-body-lg text-on-surface-variant mb-xl">
                         Thách thức trí tuệ, chinh phục bảng xếp hạng và kết nối với hàng triệu người chơi trong những trận đấu kịch tính thời gian thực.
                     </p>

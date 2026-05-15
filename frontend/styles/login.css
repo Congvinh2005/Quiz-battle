@@ -1,7 +1,7 @@
 .login-wrap {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 3fr;
   position: relative;
   overflow: hidden;
 }
@@ -33,20 +33,31 @@
 }
 
 .login-left {
-  padding: 60px 50px;
+  grid-column: 2;
+  grid-row: 1;
+  padding: 60px 80px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
   position: relative;
   z-index: 2;
 }
 
+.login-left > * {
+  width: 100%;
+  max-width: 720px;
+}
+
 .login-right {
+  grid-column: 1;
+  grid-row: 1;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
 }
 
 .orb {
@@ -75,6 +86,8 @@
 .brand-badge {
   display: inline-flex;
   align-items: center;
+  align-self: center;
+  width: fit-content;
   gap: 8px;
   background: var(--primary-glow);
   border: 1px solid rgba(124, 58, 237, .4);
@@ -84,6 +97,44 @@
   font-size: 12px;
   color: var(--primary-light);
   font-weight: 500;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.login-left form .btn-primary,
+.login-left .btn-outline {
+  width: 52%;
+  min-width: 220px;
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.login-left form .btn-primary {
+  display: block;
+  margin-top: 8px;
+}
+
+.login-left .btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+.login-left .btn-outline svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: block;
+  transform: translateY(-1px);
+}
+
+.login-left .form-group {
+  width: calc(100% - 50px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .brand-badge .dot {
@@ -95,7 +146,7 @@
 }
 
 .login-title {
-  font-family: 'Syne', sans-serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 40px;
   font-weight: 800;
   line-height: 1.15;
