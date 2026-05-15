@@ -161,6 +161,16 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     setActiveIndex(questions.length);
   };
 
+  const openSetupPanel = () => {
+    setSelectedSetupMode(null);
+    setImportFileName("");
+    setShowSetup(true);
+  };
+
+  const closeSetupPanel = () => {
+    setShowSetup(false);
+  };
+
   const startWithMode = (mode: SetupMode) => {
     setSelectedSetupMode(mode);
 
@@ -384,6 +394,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
               <option value="public">🌍 Public</option>
             </select>
           </div>
+          <button className="editor-setup-btn" onClick={openSetupPanel} type="button">
+            + Chọn cách thêm câu hỏi
+          </button>
         </div>
 
         <div className="es-title">Câu hỏi ({questions.length})</div>
@@ -505,6 +518,12 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                   key={letters[index]}
                 >
                   <span className="preview-letter">{letters[index]}</span>
+
+            <div className="setup-actions">
+              <button className="setup-back-btn" onClick={closeSetupPanel} type="button">
+                Quay lại editor
+              </button>
+            </div>
                   <span className="preview-option-text">
                     {option || `Đáp án ${letters[index]}`} {isCorrect ? "✓" : ""}
                   </span>
