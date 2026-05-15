@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { quizService } from "@/services/quizService";
@@ -95,6 +95,19 @@ export default function DashboardScreen() {
     setGreeting(getGreeting());
   }, []);
 
+  const loadQuizzes = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await quizService.getAllQuizzes();
+      setQuizzes(data);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Không tải được danh sách quiz. Kiểm tra backend rồi thử lại."));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAuthLoading) {
       return;
@@ -107,21 +120,8 @@ export default function DashboardScreen() {
       return;
     }
 
-    const loadQuizzes = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await quizService.getAllQuizzes();
-        setQuizzes(data);
-      } catch (err) {
-        setError(getApiErrorMessage(err, "Không tải được danh sách quiz. Kiểm tra backend rồi thử lại."));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     void loadQuizzes();
-  }, [isAuthLoading, user, router]);
+  }, [isAuthLoading, user, router, loadQuizzes]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -179,6 +179,12 @@ export default function DashboardScreen() {
     setAppliedSearchQuery(searchQuery.trim());
   };
 
+  const handleRefreshQuizzes = () => {
+    setSearchQuery("");
+    setAppliedSearchQuery("");
+    void loadQuizzes();
+  };
+
   return (
     <div className="home-wrap">
       <section className="home-hero">
@@ -209,9 +215,15 @@ export default function DashboardScreen() {
                   }
                 }}
               />
-              {/* <button className="btn-hero-secondary" onClick={handleSearch}>
-                🔎 Tìm
-              </button> */}
+              <button
+                className="btn-hero-secondary hero-refresh-btn"
+                onClick={handleRefreshQuizzes}
+                disabled={isLoading}
+                type="button"
+                title="Làm mới danh sách quiz"
+              >
+                ↻ Làm mới
+              </button>
             </div>
             <button className="btn-hero-secondary" onClick={() => router.push("/editor")}>
               + Tạo quiz mới
@@ -241,7 +253,7 @@ export default function DashboardScreen() {
 
           {error && <div className="section-error">{error}</div>}
 
-          <div className="quiz-grid">
+          <div className={`quiz-grid${filteredMyQuizzes.length > 6 ? " quiz-grid-scroll" : ""}`}>
             {isLoading ? (
               <div className="quiz-card">
                 <div className="quiz-card-title">Đang tải danh sách quiz...</div>
@@ -324,7 +336,7 @@ export default function DashboardScreen() {
             <span className="section-title">📖 Thư viện công khai</span>
             <button className="section-action">Xem tất cả →</button>
           </div>
-          <div className="quiz-grid">
+          <div className={`quiz-grid${filteredPublicQuizzes.length > 6 ? " quiz-grid-scroll" : ""}`}>
             {filteredPublicQuizzes.length > 0 ? (
               filteredPublicQuizzes.map((quiz) => (
                 <article className="quiz-card" key={quiz.id}>

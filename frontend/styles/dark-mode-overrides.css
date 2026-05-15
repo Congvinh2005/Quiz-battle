@@ -214,8 +214,25 @@
   background: rgba(124, 58, 237, 0.12);
 }
 
+.dark-mode .btn-hero-secondary:active,
+.dark-mode .btn-hero-secondary:focus-visible {
+  background: rgba(124, 58, 237, 0.22);
+  border-color: var(--primary-light);
+  color: #ffffff;
+}
+
+.dark-mode .section-action {
+  color: var(--primary-light);
+}
+
 .dark-mode .section-action:hover {
   color: var(--primary-light);
+}
+
+.dark-mode .section-action:active,
+.dark-mode .section-action:focus-visible {
+  color: #ffffff;
+  outline: none;
 }
 
 .dark-mode .streak-card {
