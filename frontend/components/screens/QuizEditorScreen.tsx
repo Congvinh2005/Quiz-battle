@@ -78,7 +78,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(quizId ? true : false);
-  const [showSetup, setShowSetup] = useState(!quizId);
+  const [showSetup, setShowSetup] = useState(false);
   const [selectedSetupMode, setSelectedSetupMode] = useState<SetupMode | null>(null);
   const [importFileName, setImportFileName] = useState("");
 
@@ -370,6 +370,12 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
                 <button className="import-continue-btn" onClick={() => startWithMode("import")}>Tiếp tục với file</button>
               </div>
+            </div>
+
+            <div className="setup-actions">
+              <button className="setup-back-btn" onClick={closeSetupPanel} type="button">
+                Quay lại editor
+              </button>
             </div>
           </div>
         </main>
