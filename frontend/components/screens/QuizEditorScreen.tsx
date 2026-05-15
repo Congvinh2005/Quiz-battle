@@ -3,6 +3,7 @@
 import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { quizService, QuizSavePayload } from "@/services/quizService";
+import { importQuestions } from "@/services/importService";
 import { Quiz } from "@/types";
 
 interface QuizEditorScreenProps {
@@ -81,6 +82,8 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const [showSetup, setShowSetup] = useState(false);
   const [selectedSetupMode, setSelectedSetupMode] = useState<SetupMode | null>(null);
   const [importFileName, setImportFileName] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (!quizId) return;
@@ -188,15 +191,50 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
       return;
     }
 
-    // UI phase only: import parsing flow will be implemented in the next step.
-    setQuestions([{ ...blankQuestion, id: `q${Date.now()}` }]);
-    setActiveIndex(0);
-    setShowSetup(false);
+    if (mode === "import" && importFile) {
+      handleImportFile();
+    }
   };
 
   const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    setImportFileName(file?.name ?? "");
+    if (file) {
+      setImportFile(file);
+      setImportFileName(file.name);
+    }
+  };
+
+  const handleImportFile = async () => {
+    if (!importFile) {
+      alert("Vui lòng chọn file trước");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const importedQuestions = await importQuestions(importFile);
+      
+      // Convert imported questions to EditorQuestion format
+      const convertedQuestions = importedQuestions.map((q) => ({
+        id: q.id || `q${Date.now()}`,
+        text: q.text,
+        type: q.type,
+        timeLimit: q.timeLimit || 30,
+        points: q.points || 100,
+        options: q.options,
+        correctIndex: q.correctIndex || 0,
+      }));
+
+      setQuestions(convertedQuestions);
+      setActiveIndex(0);
+      setShowSetup(false);
+      alert(`✅ Đã import thành công ${convertedQuestions.length} câu hỏi!`);
+    } catch (error) {
+      console.error("Import error:", error);
+      alert(`❌ Lỗi import file: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleDeleteQuestion = () => {
@@ -365,10 +403,17 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                 <div className="import-file-name">{importFileName || "Chưa chọn file"}</div>
 
                 <div className="import-preview-note">
-                  Khi xử lý thật: hệ thống sẽ tự chuyển thành câu hỏi + 4 đáp án hoặc đúng/sai theo dữ liệu đầu vào.
+                  Hỗ trợ: Excel (.xlsx, .xls), CSV, Word (.docx). Hệ thống sẽ tự phát hiện đáp án đúng từ phần bôi vàng.
                 </div>
 
-                <button className="import-continue-btn" onClick={() => startWithMode("import")}>Tiếp tục với file</button>
+                <button 
+                  className="import-continue-btn" 
+                  onClick={handleImportFile}
+                  disabled={!importFile || isImporting}
+                  type="button"
+                >
+                  {isImporting ? "Đang xử lý..." : "Tiếp tục với file"}
+                </button>
               </div>
             </div>
 
@@ -524,12 +569,6 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                   key={letters[index]}
                 >
                   <span className="preview-letter">{letters[index]}</span>
-
-            <div className="setup-actions">
-              <button className="setup-back-btn" onClick={closeSetupPanel} type="button">
-                Quay lại editor
-              </button>
-            </div>
                   <span className="preview-option-text">
                     {option || `Đáp án ${letters[index]}`} {isCorrect ? "✓" : ""}
                   </span>

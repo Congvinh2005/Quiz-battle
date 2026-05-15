@@ -23,7 +23,7 @@ export default function LoginScreen() {
       await login(username, password);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Đăng nhập thất bại");
+      setError(err.response?.data?.detail || err.response?.data?.message || "Đăng nhập thất bại");
     } finally {
       setIsLoading(false);
     }

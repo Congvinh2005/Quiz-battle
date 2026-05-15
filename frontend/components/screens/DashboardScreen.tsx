@@ -88,6 +88,12 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
+  const [greeting, setGreeting] = useState("Chào buổi sáng");
+
+  // Fix hydration error: update greeting after client hydration
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -177,7 +183,7 @@ export default function DashboardScreen() {
     <div className="home-wrap">
       <section className="home-hero">
         <div className="hero-text">
-          <p className="hero-greeting">{getGreeting()} 👋</p>
+          <p className="hero-greeting">{greeting} 👋</p>
           <h1 className="hero-title">
             Xin chào, <span>{displayName}!</span>
           </h1>
