@@ -603,7 +603,7 @@ async def join_room(room_code: str, payload: dict, current_user: UUID, db: Sessi
 	).first()
 
 	if is_kicked:
-		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You have been kicked from this room and cannot rejoin")
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bạn đã bị loại khỏi phòng này và không thể tham gia lại")
 
 	if room.status != "WAITING":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is not in WAITING status")
