@@ -534,13 +534,15 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       // Refresh players list after joining
       const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
       setPlayers(updatedPlayers);
-    } catch (err) {
+    } catch (err: any) {
       if (isRoomNotFoundError(err)) {
         notifyRoomClosedAndRedirect("Phòng đã đóng do host rời phòng. Bạn sẽ được chuyển về Dashboard...");
         return;
       }
 
-      setError("Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.");
+      // Get error message from backend
+      const errorMessage = err?.response?.data?.detail || "Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.";
+      setError(errorMessage);
     } finally {
       setIsJoining(false);
     }
