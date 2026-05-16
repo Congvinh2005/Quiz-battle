@@ -33,3 +33,4 @@ class GameRoom(BaseModel):
     player_answers = relationship("PlayerAnswer", back_populates="room", cascade="all, delete-orphan")
     game_results = relationship("GameResult", back_populates="room")  # No cascade - keep results when room deletes
     chat_messages = relationship("ChatMessage", back_populates="room", cascade="all, delete-orphan")
+    kicked_players = relationship("KickedPlayer", back_populates="room", cascade="all, delete-orphan")

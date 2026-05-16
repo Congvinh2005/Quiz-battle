@@ -244,4 +244,20 @@ export const gameService = {
     );
     return response.data;
   },
+
+  // Kick player from room
+  kickPlayer: async (roomCode: string, userId: string): Promise<any> => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("access_token")
+        : null;
+    const response = await apiClient.post<any>(
+      `/rooms/${roomCode}/kick/${userId}`,
+      {},
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      },
+    );
+    return response.data;
+  },
 };

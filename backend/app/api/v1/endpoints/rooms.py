@@ -16,6 +16,7 @@ from app.services.game_service import (
     get_room_leaderboard as get_room_leaderboard_service,
     join_room as join_room_service,
     leave_room as leave_room_service,
+    kick_player as kick_player_service,
     start_game as start_game_service,
     post_chat_message as post_chat_message_service,
     submit_answer as submit_answer_service,
@@ -113,4 +114,28 @@ async def post_chat_message(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error posting chat message: {str(e)}"
+        )
+
+
+@router.post("/{room_code}/kick/{user_id}", response_model=dict)
+async def kick_player(
+    room_code: str,
+    user_id: UUID,
+    current_user: UUID = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Host can kick a player from the room."""
+    try:
+        logger.info(f"Kick request - Room: {room_code}, User to kick: {user_id}, Host: {current_user}")
+        result = await kick_player_service(room_code, user_id, current_user, db)
+        logger.info(f"Player kicked successfully - User: {user_id}")
+        return result
+    except HTTPException as e:
+        logger.warning(f"HTTPException in kick_player: {e.status_code} - {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in kick_player: {type(e).__name__}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error kicking player: {str(e)}"
         )

@@ -319,6 +319,18 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       notifyRoomClosedAndRedirect(message);
     };
 
+    const handlePlayerKicked = (data: any) => {
+      // Check if current user was kicked
+      if (data?.kicked_user_id === user?.id) {
+        // Show notification and redirect
+        notifyRoomClosedAndRedirect("Bạn đã bị loại khỏi phòng bởi host. Bạn sẽ được chuyển về Dashboard...");
+        return;
+      }
+
+      // Update players list for other users
+      applyRoomState(data);
+    };
+
     const handleChatMessage = (data: any) => {
       if (data?.message) {
         setChatMessages((prev) => {
@@ -355,6 +367,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
       wsService.on("PLAYER_JOINED", handlePlayerJoined);
       wsService.on("PLAYER_LEFT", handlePlayerLeft);
+      wsService.on("PLAYER_KICKED", handlePlayerKicked);
       wsService.on("GAME_STARTED", handleGameStarted);
       wsService.on("ROOM_CLOSED", handleRoomClosed);
       wsService.on("CHAT_MESSAGE", handleChatMessage);
@@ -374,6 +387,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       cancelled = true;
       wsService.off("PLAYER_JOINED", handlePlayerJoined);
       wsService.off("PLAYER_LEFT", handlePlayerLeft);
+      wsService.off("PLAYER_KICKED", handlePlayerKicked);
       wsService.off("GAME_STARTED", handleGameStarted);
       wsService.off("ROOM_CLOSED", handleRoomClosed);
       wsService.off("CHAT_MESSAGE", handleChatMessage);
@@ -574,6 +588,27 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     }
   };
 
+  const handleKickPlayer = async (playerId: string) => {
+    const playerToKick = players.find((p) => p.id === playerId);
+    if (!playerToKick) return;
+
+    if (!confirm(`Bạn chắc chắn muốn loại ${playerToKick.display_name} khỏi phòng?`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await gameService.kickPlayer(displayRoomCode, playerToKick.user_id);
+      // Refresh players list after kicking
+      const updatedPlayers = await gameService.getRoomPlayers(displayRoomCode);
+      setPlayers(updatedPlayers);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.detail || "Không thể loại người chơi khỏi phòng.";
+      setError(errorMsg);
+      console.error("Failed to kick player:", err);
+    }
+  };
+
   return (
     <div className="lobby-wrap">
       <div className="lobby-header">
@@ -627,12 +662,38 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
           <div className="players-grid">
             {displayPlayers.map((player, index) => (
-              <div className={`player-chip${player.isHost ? " host" : ""}`} key={player.id}>
+              <div className={`player-chip${player.isHost ? " host" : ""}`} key={player.id} style={{ position: "relative" }}>
                 <div className="player-av" style={{ background: avatarGradients[index % avatarGradients.length] }}>
                   {getInitials(player.display_name)}
                 </div>
                 <div className="player-name">{player.display_name}</div>
                 {player.isHost && <div className="player-badge">👑 Host</div>}
+                {isCurrentUserHost && !player.isHost && (
+                  <button
+                    className="player-kick-btn"
+                    onClick={() => handleKickPlayer(player.id)}
+                    title="Kick player"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      right: 0,
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      backgroundColor: "rgba(239, 68, 68, 0.9)",
+                      border: "none",
+                      color: "white",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
 

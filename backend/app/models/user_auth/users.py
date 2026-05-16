@@ -29,6 +29,7 @@ class User(BaseModel):
     player_answers = relationship("PlayerAnswer", back_populates="user", cascade="all, delete-orphan")
     game_results = relationship("GameResult", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
+    kicked_players = relationship("KickedPlayer", back_populates="user", cascade="all, delete-orphan")
 
     # User stats relationship
     user_stats = relationship("UserStats", back_populates="user", uselist=False, cascade="all, delete-orphan")

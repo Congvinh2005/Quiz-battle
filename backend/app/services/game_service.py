@@ -11,6 +11,7 @@ from app.models.game.game_rooms import GameRoom
 from app.models.game.room_players import RoomPlayer
 from app.models.game.player_answers import PlayerAnswer
 from app.models.game.game_results import GameResult
+from app.models.game.kicked_players import KickedPlayer
 from app.models.quiz.quizzes import Quiz
 from app.models.quiz.questions import Question
 from app.models.quiz.answer_options import AnswerOption
@@ -595,6 +596,15 @@ async def join_room(room_code: str, payload: dict, current_user: UUID, db: Sessi
 	if not room:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
 
+	# Check if player has been kicked from this room
+	is_kicked = db.query(KickedPlayer).filter(
+		KickedPlayer.room_id == room.id,
+		KickedPlayer.user_id == current_user
+	).first()
+
+	if is_kicked:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You have been kicked from this room and cannot rejoin")
+
 	if room.status != "WAITING":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is not in WAITING status")
 
@@ -726,6 +736,69 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 		)
 		await _maybe_auto_finalize_game(room_code, room, db)
 	return None
+
+
+async def kick_player(room_code: str, user_id_to_kick: UUID, current_user: UUID, db: Session) -> dict:
+	"""Kick a player from the room. Only host can kick players."""
+	room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
+	if not room:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+
+	# Only host can kick
+	if room.host_id != current_user:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only host can kick players")
+
+	# Cannot kick self
+	if user_id_to_kick == current_user:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot kick yourself")
+
+	# Find the player to kick
+	player = db.query(RoomPlayer).filter(
+		RoomPlayer.room_id == room.id,
+		RoomPlayer.user_id == user_id_to_kick
+	).first()
+
+	if not player:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found in room")
+
+	# Record the kick
+	kicked_entry = KickedPlayer(
+		room_id=room.id,
+		user_id=user_id_to_kick,
+		kicked_at=datetime.now(timezone.utc)
+	)
+	db.add(kicked_entry)
+
+	# Remove player from room
+	kicked_player_data = _serialize_player(player)
+	db.delete(player)
+	db.commit()
+
+	# Get remaining players
+	remaining_players = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()
+
+	# Broadcast the kick event
+	await manager.broadcast(
+		room_code,
+		{
+			"type": "PLAYER_KICKED",
+			"data": {
+				"room_code": room_code,
+				"kicked_player": kicked_player_data,
+				"kicked_user_id": str(user_id_to_kick),
+				"players": [_serialize_player(p) for p in remaining_players],
+				"player_count": len(remaining_players),
+				"message": f"Người chơi {player.display_name} đã bị loại khỏi phòng bởi host.",
+			},
+		},
+	)
+
+	return {
+		"kicked_player": kicked_player_data,
+		"remaining_players": [_serialize_player(p) for p in remaining_players],
+		"player_count": len(remaining_players),
+		"message": f"Đã loại {player.display_name} khỏi phòng",
+	}
 
 
 def get_room_players(room_code: str, db: Session) -> list:
