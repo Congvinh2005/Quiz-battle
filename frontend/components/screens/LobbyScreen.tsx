@@ -176,8 +176,17 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
           chatHistory.map((message) => toChatLine(message, hostIdFromRoom))
         );
 
-        // Auto-redirect if game is already playing (late joiners)
+        // Auto-redirect if game is already playing
         if (roomData?.status === "PLAYING") {
+          // Check if current user is a player in the room
+          const isUserPlayer = playersData.some((player: any) => player.user_id === user?.id);
+
+          if (!isUserPlayer) {
+            // User hasn't joined the room, show notification and redirect to dashboard
+            notifyRoomClosedAndRedirect("Phòng chơi đã bắt đầu. Bạn sẽ được chuyển về Dashboard...");
+            return;
+          }
+
           setTimeout(() => {
             router.push(`/game/${roomCode}`);
           }, 500);
@@ -239,10 +248,21 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         try {
           const roomData = await gameService.getRoomByCode(roomCode);
           if (roomData?.status === "PLAYING" && !hasRedirectedRef.current) {
+            // Check if current user is actually a player in the room
+            const playersData = await gameService.getRoomPlayers(roomCode);
+            const isUserPlayer = playersData.some((player: any) => player.user_id === user?.id);
+
             hasRedirectedRef.current = true;
             if (pollIntervalRef.current) {
               clearInterval(pollIntervalRef.current);
             }
+
+            if (!isUserPlayer) {
+              // User hasn't joined, notify and redirect to dashboard
+              notifyRoomClosedAndRedirect("Phòng chơi đã bắt đầu. Bạn sẽ được chuyển về Dashboard...");
+              return;
+            }
+
             setTimeout(() => {
               router.push(`/game/${roomCode}`);
             }, 100);
@@ -260,7 +280,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [roomCode, router]);
+  }, [roomCode, router, user?.id, notifyRoomClosedAndRedirect]);
 
   useEffect(() => {
     if (!roomCode || roomClosedMessage) return;
@@ -308,6 +328,17 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         clearInterval(pollIntervalRef.current);
       }
       hasRedirectedRef.current = true;
+
+      // Check if current user is a player in the room
+      const players = data?.players || [];
+      const isCurrentUserPlayer = players.some((player: any) => player.user_id === user?.id);
+
+      if (!isCurrentUserPlayer) {
+        // User hasn't joined the room yet, show notification and redirect to dashboard
+        notifyRoomClosedAndRedirect("Phòng chơi đã bắt đầu. Bạn sẽ được chuyển về Dashboard...");
+        return;
+      }
+
       // Redirect all players to game screen
       setTimeout(() => {
         router.push(`/game/${roomCode}`);
