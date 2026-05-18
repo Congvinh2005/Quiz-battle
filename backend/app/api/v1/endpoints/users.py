@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -8,6 +11,9 @@ from app.core.security import hash_password, verify_password
 from app.models.user_auth.users import User
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+ALLOWED_AVATAR_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
 
 
 def _serialize_user(user: User):
@@ -67,6 +73,33 @@ def update_me(payload: dict, current_user: UUID = Depends(get_current_user), db:
     db.commit()
     db.refresh(user)
     return _serialize_user(user)
+
+
+@router.post("/me/avatar", response_model=dict)
+async def upload_my_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: UUID = Depends(get_current_user),
+):
+    extension = ALLOWED_AVATAR_TYPES.get(file.content_type or "")
+    if not extension:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar must be an image file")
+
+    contents = await file.read()
+    if len(contents) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar file must be smaller than 2MB")
+
+    upload_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "uploads", "avatars")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = f"{current_user}-{uuid4().hex}{extension}"
+    file_path = os.path.join(upload_dir, filename)
+    with open(file_path, "wb") as avatar_file:
+        avatar_file.write(contents)
+
+    avatar_path = f"/static/uploads/avatars/{filename}"
+    avatar_url = f"{str(request.base_url).rstrip('/')}{avatar_path}"
+    return {"avatar_url": avatar_url}
 
 
 @router.put("/me/password", response_model=dict)

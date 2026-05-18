@@ -31,6 +31,7 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
 
   useEffect(() => {
@@ -102,6 +103,25 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
     }
   };
 
+  const handleAvatarFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      setIsUploadingAvatar(true);
+      setError(null);
+      setMessage(null);
+      const result = await authService.uploadAvatar(file);
+      setAvatarUrl(result.avatar_url);
+      setMessage("Đã tải ảnh lên. Bấm Lưu thông tin để cập nhật avatar.");
+    } catch (err) {
+      setError(getErrorMessage(err, "Không tải được ảnh đại diện."));
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   return (
     <div className="settings-modal-overlay" onClick={onClose}>
       <div className="settings-modal-content account-modal-content" onClick={(event) => event.stopPropagation()}>
@@ -164,6 +184,17 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   placeholder="https://example.com/avatar.jpg"
                 />
               </label>
+              <div className="account-avatar-actions">
+                <label className="account-file-btn">
+                  {isUploadingAvatar ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
+                  <input type="file" accept="image/*" onChange={handleAvatarFileChange} disabled={isUploadingAvatar} />
+                </label>
+                {avatarUrl && (
+                  <button type="button" className="account-secondary-btn" onClick={() => setAvatarUrl("")}>
+                    Xóa avatar
+                  </button>
+                )}
+              </div>
               <div className="account-avatar-preview">
                 <div className="account-avatar-frame">
                   {avatarUrl ? (
