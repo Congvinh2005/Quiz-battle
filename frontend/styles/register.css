@@ -143,3 +143,50 @@
   opacity: 0.6;
   transition: opacity 0.2s;
 }
+
+@media (max-width: 768px) {
+  .register-wrap {
+    align-items: flex-start;
+    padding: 88px 14px 20px;
+  }
+
+  .register-card {
+    border-radius: 18px;
+    padding: 24px 16px;
+    box-shadow: 0 20px 44px rgba(124, 58, 237, 0.14);
+  }
+
+  .register-header {
+    margin-bottom: 22px;
+  }
+
+  .register-title {
+    font-size: 26px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-back-btn {
+    top: 14px;
+    left: 14px;
+    padding: 8px 12px;
+  }
+
+  .register-card {
+    padding: 20px 14px;
+  }
+
+  .register-title {
+    font-size: 24px;
+  }
+
+  .register-sub,
+  .register-footer {
+    font-size: 13px;
+  }
+}

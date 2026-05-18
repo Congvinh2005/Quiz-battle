@@ -592,4 +592,55 @@
     width: 100%;
     justify-content: center;
   }
+
+  .hero-search {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-search-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .hero-refresh-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quiz-grid-scroll {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-hero,
+  .home-body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .home-hero {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+  }
+
+  .hero-stat-card {
+    padding: 12px;
+  }
+
+  .join-input {
+    font-size: 16px;
+  }
+
+  .btn-join {
+    width: 100%;
+  }
 }

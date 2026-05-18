@@ -98,3 +98,41 @@
   font-weight: 700;
   color: var(--text);
 }
+
+@media (max-width: 640px) {
+  .settings-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .settings-modal-content {
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .settings-modal-header {
+    padding: 14px 16px;
+  }
+
+  .settings-modal-body {
+    padding: 16px;
+  }
+
+  .theme-options {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-option {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 14px 12px;
+  }
+
+  .theme-icon {
+    font-size: 22px;
+  }
+}

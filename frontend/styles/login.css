@@ -146,7 +146,7 @@
 }
 
 .login-title {
-  font-family: 'Times New Roman', Times, serif;
+  font-family: 'Syne', sans-serif;
   font-size: 40px;
   font-weight: 800;
   line-height: 1.15;
@@ -401,4 +401,100 @@
   color: var(--text);
   opacity: 0.6;
   transition: opacity 0.2s;
+}
+
+@media (max-width: 1100px) {
+  .login-wrap {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .login-left {
+    padding: 48px 32px;
+  }
+
+  .login-left form .btn-primary,
+  .login-left .btn-outline,
+  .login-left .form-group {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-wrap {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .login-right {
+    display: none;
+  }
+
+  .login-left {
+    grid-column: 1;
+    padding: 88px 18px 28px;
+    align-items: stretch;
+  }
+
+  .brand-badge {
+    margin-bottom: 18px;
+  }
+
+  .login-title {
+    font-size: 32px;
+  }
+
+  .login-sub {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .login-left form .btn-primary,
+  .login-left .btn-outline,
+  .login-left .form-group {
+    width: 100%;
+  }
+
+  .app-nav {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .nav-tabs {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-back-btn {
+    top: 14px;
+    left: 14px;
+    padding: 8px 12px;
+  }
+
+  .login-left {
+    padding-top: 74px;
+  }
+
+  .login-title {
+    font-size: 28px;
+  }
+
+  .demo-card {
+    min-width: 0;
+  }
+
+  .nav-tab {
+    padding: 6px 12px;
+    white-space: nowrap;
+  }
 }

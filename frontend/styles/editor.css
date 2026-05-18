@@ -675,3 +675,37 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 560px) {
+  .setup-panel {
+    border-radius: 16px;
+    padding: 18px 14px;
+  }
+
+  .setup-title {
+    font-size: 24px;
+  }
+
+  .editor-main {
+    padding: 16px 14px;
+  }
+
+  .editor-main-header {
+    gap: 10px;
+  }
+
+  .editor-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .editor-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .editor-preview {
+    padding: 14px;
+    border-radius: 14px;
+  }
+}

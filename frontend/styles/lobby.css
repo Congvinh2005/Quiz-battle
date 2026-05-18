@@ -492,4 +492,54 @@
   .players-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .join-form-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .join-form-title {
+    white-space: normal;
+  }
+
+  .join-form-row {
+    width: 100%;
+  }
+
+  .chat-messages {
+    max-height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lobby-wrap {
+    padding: 18px 14px;
+  }
+
+  .lobby-code {
+    font-size: 24px;
+    letter-spacing: 0.14em;
+  }
+
+  .players-area,
+  .quiz-preview-card,
+  .chat-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .players-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-input-row,
+  .join-form-row {
+    flex-direction: column;
+  }
+
+  .chat-send,
+  .join-btn {
+    width: 100%;
+    min-height: 44px;
+  }
 }

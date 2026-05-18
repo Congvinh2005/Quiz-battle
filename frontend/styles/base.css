@@ -19,6 +19,8 @@
   --muted: #475569;
   --card-radius: 16px;
   --pill: 100px;
+  --font-heading: "Syne", "DM Sans", sans-serif;
+  --font-body: "DM Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .dark-mode {
@@ -44,11 +46,24 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  line-height: 1.55;
+  font-size: clamp(15px, 1.4vw, 16px);
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
 }
 
 .form-group { margin-bottom: 16px; }
@@ -60,7 +75,7 @@ body {
 .form-input {
   width: 100%; padding: 12px 16px; border-radius: 10px;
   background: #f8fbff; border: 1px solid var(--border2);
-  color: var(--text); font-size: 15px; font-family: 'DM Sans', sans-serif;
+  color: var(--text); font-size: 15px; font-family: var(--font-body);
   outline: none; transition: all .2s;
 }
 .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
@@ -70,7 +85,7 @@ body {
   width: 100%; padding: 13px; border-radius: 10px;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   border: none; color: #fff; font-size: 15px; font-weight: 600;
-  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .2s;
+  font-family: var(--font-body); cursor: pointer; transition: all .2s;
   margin-top: 8px; box-shadow: 0 4px 20px var(--primary-glow);
 }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 30px var(--primary-glow); }
@@ -79,7 +94,7 @@ body {
   width: 100%; padding: 12px; border-radius: 10px;
   background: transparent; border: 1px solid var(--border2);
   color: var(--text); font-size: 14px; font-weight: 500;
-  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .2s;
+  font-family: var(--font-body); cursor: pointer; transition: all .2s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn-outline:hover { background: rgba(124, 58, 237, 0.08); border-color: rgba(124, 58, 237, 0.18); }
@@ -97,7 +112,7 @@ body {
   font-size: 13px; color: var(--muted); cursor: pointer; margin-bottom: 24px;
 }
 .page-back:hover { color: var(--text); }
-.page-title { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; margin-bottom: 6px; }
+.page-title { font-family: var(--font-heading); font-size: clamp(24px, 3vw, 32px); font-weight: 800; margin-bottom: 6px; line-height: 1.2; }
 .page-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
 
 .link { color: var(--primary-light); cursor: pointer; }
@@ -109,3 +124,38 @@ body {
 
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+@media (max-width: 768px) {
+  .page-back {
+    margin-bottom: 18px;
+  }
+
+  .page-sub {
+    margin-bottom: 22px;
+    font-size: 13px;
+  }
+
+  .form-input,
+  .btn-primary,
+  .btn-outline {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 640px) {
+  .form-label {
+    font-size: 11px;
+  }
+
+  .form-input {
+    font-size: 16px;
+    padding: 13px 14px;
+  }
+
+  .btn-primary,
+  .btn-outline {
+    font-size: 15px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+}

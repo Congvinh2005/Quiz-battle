@@ -549,3 +549,43 @@
     max-height: 360px;
   }
 }
+
+@media (max-width: 480px) {
+  .result-wrap {
+    padding: 18px 14px;
+  }
+
+  .result-hero {
+    padding: 24px 8px 20px;
+  }
+
+  .result-title {
+    font-size: 24px;
+  }
+
+  .result-sub {
+    font-size: 13px;
+  }
+
+  .podium {
+    gap: 4px;
+  }
+
+  .podium-bar {
+    width: 54px;
+  }
+
+  .podium-av {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .btn-play-again,
+  .btn-home {
+    width: 100%;
+    min-height: 44px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+  }
+}

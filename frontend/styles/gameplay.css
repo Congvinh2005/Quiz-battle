@@ -645,3 +645,66 @@
     width: 100%;
   }
 }
+
+@media (max-width: 560px) {
+  .game-topbar {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .timer-circle {
+    width: 46px;
+    height: 46px;
+  }
+
+  .timer-num {
+    font-size: 15px;
+  }
+
+  .game-body {
+    padding: 12px;
+    gap: 14px;
+  }
+
+  .question-card {
+    padding: 20px 14px;
+    border-radius: 14px;
+  }
+
+  .question-text {
+    font-size: 20px;
+  }
+
+  .answer-btn {
+    padding: 14px;
+    font-size: 14px;
+    gap: 10px;
+  }
+
+  .answer-letter {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 420px) {
+  .game-topbar-right {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mini-board-item {
+    padding: 8px 10px;
+  }
+
+  .mini-name,
+  .mini-score {
+    font-size: 12px;
+  }
+
+  .game-leave-btn {
+    right: 12px;
+    bottom: 12px;
+    padding: 10px 14px;
+  }
+}
