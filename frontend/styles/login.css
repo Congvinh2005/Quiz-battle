@@ -306,6 +306,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   padding: 6px 14px;
   border-radius: var(--pill);
   font-size: 13px;
@@ -340,12 +341,13 @@
 }
 
 .nav-profile-avatar {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
   flex: 0 0 auto;
   border: 1px solid rgba(124, 58, 237, 0.28);
+  background: rgba(124, 58, 237, 0.08);
 }
 
 .nav-profile-avatar.fallback {
@@ -354,7 +356,7 @@
   justify-content: center;
   background: rgba(124, 58, 237, 0.14);
   color: var(--primary-light);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 800;
 }
 
