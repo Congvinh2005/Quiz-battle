@@ -4,6 +4,7 @@ import { User, AuthTokens, LoginRequest, RegisterRequest } from "@/types";
 export interface UpdateProfileRequest {
   username: string;
   email: string;
+  avatar_url?: string | null;
 }
 
 export interface ChangePasswordRequest {

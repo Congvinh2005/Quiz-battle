@@ -19,6 +19,7 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const { user, updateUser } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,6 +32,7 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
     if (!isOpen || !user) return;
     setUsername(user.username);
     setEmail(user.email);
+    setAvatarUrl(user.avatar_url || "");
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
@@ -47,7 +49,11 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
       setIsSavingProfile(true);
       setError(null);
       setMessage(null);
-      const updatedUser = await authService.updateProfile({ username, email });
+      const updatedUser = await authService.updateProfile({
+        username,
+        email,
+        avatar_url: avatarUrl.trim() || null,
+      });
       updateUser(updatedUser);
       setMessage("Đã cập nhật thông tin tài khoản.");
     } catch (err) {
@@ -112,6 +118,25 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <span>Email</span>
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
             </label>
+            <label className="account-field">
+              <span>Avatar URL</span>
+              <input
+                type="url"
+                value={avatarUrl}
+                onChange={(event) => setAvatarUrl(event.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </label>
+            <div className="account-avatar-preview">
+              <div className="account-avatar-frame">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar preview" />
+                ) : (
+                  <span>{username.trim().slice(0, 1).toUpperCase() || "?"}</span>
+                )}
+              </div>
+              <span>Ảnh đại diện sẽ hiện ở menu và lobby.</span>
+            </div>
             <button type="submit" className="account-primary-btn" disabled={isSavingProfile}>
               {isSavingProfile ? "Đang lưu..." : "Lưu thông tin"}
             </button>

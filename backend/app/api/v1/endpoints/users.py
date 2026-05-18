@@ -15,6 +15,7 @@ def _serialize_user(user: User):
         "id": str(user.id),
         "username": user.username,
         "email": user.email,
+        "avatar_url": user.avatar_url,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
     }
@@ -42,6 +43,7 @@ def update_me(payload: dict, current_user: UUID = Depends(get_current_user), db:
 
     username = str(payload.get("username") or "").strip()
     email = str(payload.get("email") or "").strip().lower()
+    avatar_url = str(payload.get("avatar_url") or "").strip() or None
 
     if not username:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is required")
@@ -58,6 +60,7 @@ def update_me(payload: dict, current_user: UUID = Depends(get_current_user), db:
 
     user.username = username
     user.email = email
+    user.avatar_url = avatar_url
     db.commit()
     db.refresh(user)
     return _serialize_user(user)

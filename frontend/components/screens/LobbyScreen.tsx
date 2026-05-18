@@ -15,6 +15,7 @@ interface LobbyScreenProps {
 interface DisplayPlayer {
   id: string;
   display_name: string;
+  avatar_url?: string | null;
   score: number;
   isHost?: boolean;
 }
@@ -467,6 +468,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     return players.map((player) => ({
       id: player.id,
       display_name: player.display_name,
+      avatar_url: player.avatar_url,
       score: player.score,
       isHost: player.user_id === room?.host_id,
     }));
@@ -709,8 +711,12 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
           <div className="players-grid">
             {displayPlayers.map((player, index) => (
               <div className={`player-chip${player.isHost ? " host" : ""}`} key={player.id} style={{ position: "relative" }}>
-                <div className="player-av" style={{ background: avatarGradients[index % avatarGradients.length] }}>
-                  {getInitials(player.display_name)}
+                <div className="player-av" style={{ background: player.avatar_url ? undefined : avatarGradients[index % avatarGradients.length] }}>
+                  {player.avatar_url ? (
+                    <img src={player.avatar_url} alt="" />
+                  ) : (
+                    getInitials(player.display_name)
+                  )}
                 </div>
                 <div className="player-name">{player.display_name}</div>
                 {player.isHost && <div className="player-badge">👑 Host</div>}

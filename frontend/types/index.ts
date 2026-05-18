@@ -3,6 +3,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -120,6 +121,7 @@ export interface RoomPlayer {
   room_id: string;
   user_id: string;
   display_name: string;
+  avatar_url?: string | null;
   score: number;
   joined_at: string;
 }

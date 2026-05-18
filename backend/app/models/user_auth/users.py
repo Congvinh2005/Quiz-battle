@@ -15,6 +15,7 @@ class User(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String(255), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
+    avatar_url = Column(Text)
     password_hash = Column(Text, nullable=False)
 
     # Auth domain relationships
@@ -33,4 +34,3 @@ class User(BaseModel):
 
     # User stats relationship
     user_stats = relationship("UserStats", back_populates="user", uselist=False, cascade="all, delete-orphan")
-
