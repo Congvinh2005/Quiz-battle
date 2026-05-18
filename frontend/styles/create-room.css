@@ -1,7 +1,7 @@
 /* Create room page */
 .create-room-wrap {
   padding: 32px;
-  max-width: 900px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
@@ -9,12 +9,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   gap: 28px;
+  align-items: start;
 }
 
 .create-room-left {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
   gap: 20px;
+}
+
+.create-room-left .create-room-error {
+  grid-column: 1 / -1;
 }
 
 .step-card {
@@ -115,6 +120,17 @@
   background: rgba(124, 58, 237, 0.16);
 }
 
+.quiz-select-item.quiz-empty-state {
+  cursor: default;
+  border-color: var(--border2);
+  background: #ffffff;
+}
+
+.quiz-select-item.quiz-empty-state:hover {
+  border-color: var(--border2);
+  background: #ffffff;
+}
+
 .quiz-icon {
   width: 44px;
   height: 44px;
@@ -165,7 +181,7 @@
 
 .settings-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
   margin-top: 14px;
 }
@@ -439,6 +455,10 @@
 
 @media (max-width: 900px) {
   .create-room-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-room-left {
     grid-template-columns: 1fr;
   }
 

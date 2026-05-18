@@ -267,6 +267,16 @@ export default function CreateRoomScreen() {
                   </div>
                   <div className="quiz-check checked">✓</div>
                 </div>
+              ) : pageQuizzes.length === 0 ? (
+                <div className="quiz-select-item quiz-empty-state">
+                  <div className="quiz-icon" style={{ background: iconBackgrounds[1] }}>
+                    🔎
+                  </div>
+                  <div className="quiz-info">
+                    <div className="quiz-name">Không tìm thấy quiz</div>
+                    <div className="quiz-meta-small">Thử đổi từ khóa hoặc làm mới danh sách</div>
+                  </div>
+                </div>
               ) : (
                 pageQuizzes.map((quiz, index) => {
                   const selected = quiz.id === selectedQuizId;
