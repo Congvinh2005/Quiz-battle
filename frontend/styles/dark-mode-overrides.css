@@ -87,6 +87,57 @@
   background: #0b0d14;
 }
 
+.dark-mode .setup-panel {
+  background: var(--surface);
+  border-color: var(--border2);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+}
+
+.dark-mode .setup-title,
+.dark-mode .setup-option-title,
+.dark-mode .import-file-name {
+  color: var(--text);
+}
+
+.dark-mode .setup-sub,
+.dark-mode .setup-option-desc,
+.dark-mode .import-file-picker,
+.dark-mode .import-preview-note {
+  color: var(--muted);
+}
+
+.dark-mode .setup-option-card {
+  background: var(--surface2);
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+.dark-mode .setup-option-card:hover {
+  border-color: rgba(124, 58, 237, 0.45);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+}
+
+.dark-mode .setup-option-card.active {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.24);
+}
+
+.dark-mode .import-file-picker {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: var(--border2);
+}
+
+.dark-mode .setup-back-btn {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.dark-mode .setup-back-btn:hover {
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+}
+
 .dark-mode .editor-sidebar {
   background: var(--surface);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
