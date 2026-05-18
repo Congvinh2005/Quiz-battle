@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import AccountModal from "../modals/AccountModal";
 import SettingsModal from "../modals/SettingsModal.tsx";
 
 export default function Navigation() {
@@ -11,6 +12,7 @@ export default function Navigation() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function Navigation() {
 
   const handleManageProfile = () => {
     setIsProfileMenuOpen(false);
+    setIsAccountOpen(true);
   };
 
   const handleManageSettings = () => {
@@ -112,6 +115,7 @@ export default function Navigation() {
           </Link>
         )}
       </div>
+      <AccountModal isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </nav>
   );
