@@ -138,8 +138,36 @@ export default function CreateRoomScreen() {
     return demoQuizzes;
   }, [quizzes]);
 
-  const selectedQuiz = selectableQuizzes.find((quiz) => quiz.id === selectedQuizId) || selectableQuizzes[0];
-  const selectedRealQuiz = quizzes.find((quiz) => quiz.id === selectedQuiz?.id);
+  // Pagination for quiz list
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const PAGE_SIZE = 6;
+
+  useEffect(() => {
+    // reset to first page when quizzes list changes
+    setCurrentPage(1);
+  }, [selectableQuizzes.length]);
+
+  // ensure selected quiz is visible on page change/load
+  useEffect(() => {
+    if (!selectedQuizId) return;
+    const idx = selectableQuizzes.findIndex((q) => q.id === selectedQuizId);
+    if (idx === -1) return;
+    const pageForIdx = Math.floor(idx / PAGE_SIZE) + 1;
+    if (pageForIdx !== currentPage) setCurrentPage(pageForIdx);
+  }, [selectedQuizId, selectableQuizzes]);
+
+  const totalPages = Math.max(1, Math.ceil(selectableQuizzes.length / PAGE_SIZE));
+  const pageQuizzes = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return selectableQuizzes.slice(start, start + PAGE_SIZE);
+  }, [selectableQuizzes, currentPage]);
+
+  const selectedQuiz = useMemo(
+    () => selectableQuizzes.find((quiz) => quiz.id === selectedQuizId) || selectableQuizzes[0],
+    [selectableQuizzes, selectedQuizId]
+  );
+
+  const selectedRealQuiz = useMemo(() => quizzes.find((quiz) => quiz.id === selectedQuiz?.id), [quizzes, selectedQuiz]);
 
   const adjustPlayers = (delta: number) => {
     setMaxPlayers((current) => Math.max(2, Math.min(100, current + delta)));
@@ -203,8 +231,8 @@ export default function CreateRoomScreen() {
                   <div className="quiz-check checked">✓</div>
                 </div>
               ) : (
-                selectableQuizzes.map((quiz, index) => {
-                  const selected = quiz.id === selectedQuiz?.id;
+                pageQuizzes.map((quiz, index) => {
+                  const selected = quiz.id === selectedQuizId;
 
                   return (
                     <button
@@ -230,6 +258,33 @@ export default function CreateRoomScreen() {
                 })
               )}
             </div>
+
+            {/* Pagination controls */}
+            {selectableQuizzes.length > PAGE_SIZE && (
+              <div className="pagination-row">
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ← Trước
+                </button>
+
+                <div className="pagination-info">
+                  Trang {currentPage} / {totalPages}
+                </div>
+
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Tiếp →
+                </button>
+              </div>
+            )}
           </section>
 
           <section className="step-card">

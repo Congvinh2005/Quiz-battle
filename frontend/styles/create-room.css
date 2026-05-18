@@ -58,6 +58,36 @@
   gap: 10px;
 }
 
+/* Make the quiz list scrollable when long */
+.quiz-select-list {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 6px; /* room for scrollbar */
+}
+
+.quiz-select-list::-webkit-scrollbar {
+  width: 8px;
+}
+.quiz-select-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.quiz-select-list::-webkit-scrollbar-thumb {
+  background: rgba(124,58,237,0.14);
+  border-radius: 8px;
+}
+
+@media (max-width: 720px) {
+  .quiz-select-list {
+    max-height: 360px;
+  }
+}
+
+@media (max-width: 480px) {
+  .quiz-select-list {
+    max-height: 320px;
+  }
+}
+
 .quiz-select-item {
   display: flex;
   align-items: center;
@@ -474,4 +504,31 @@
   .btn-create {
     min-height: 46px;
   }
+}
+
+.pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--muted);
 }

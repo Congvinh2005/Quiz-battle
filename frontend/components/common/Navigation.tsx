@@ -94,7 +94,7 @@ export default function Navigation() {
             {isProfileMenuOpen && (
               <div className="nav-profile-dropdown">
                 <button type="button" className="nav-profile-item" onClick={handleManageProfile}>
-                  ⚙️ Quản lý thông tin
+                  🗂️ Quản lý thông tin
                 </button>
                 <button type="button" className="nav-profile-item" onClick={handleManageSettings}>
                   ⚙️ Quản lý cấu hình
