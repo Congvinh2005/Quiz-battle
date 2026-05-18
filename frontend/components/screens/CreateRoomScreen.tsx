@@ -138,33 +138,49 @@ export default function CreateRoomScreen() {
     return demoQuizzes;
   }, [quizzes]);
 
+  // Search state for realtime filtering
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+
+  // Debounce the search input to avoid filtering on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // Filter quizzes by debounced search term
+  const filteredQuizzes = useMemo(() => {
+    if (!debouncedSearchTerm) return selectableQuizzes;
+    return selectableQuizzes.filter((q) => q.title.toLowerCase().includes(debouncedSearchTerm));
+  }, [selectableQuizzes, debouncedSearchTerm]);
+
   // Pagination for quiz list
   const [currentPage, setCurrentPage] = useState<number>(1);
   const PAGE_SIZE = 6;
 
   useEffect(() => {
-    // reset to first page when quizzes list changes
+    // reset to first page when the filtered quizzes change (e.g., search)
     setCurrentPage(1);
-  }, [selectableQuizzes.length]);
+  }, [filteredQuizzes.length]);
 
   // ensure selected quiz is visible on page change/load
   useEffect(() => {
     if (!selectedQuizId) return;
-    const idx = selectableQuizzes.findIndex((q) => q.id === selectedQuizId);
+    const idx = filteredQuizzes.findIndex((q) => q.id === selectedQuizId);
     if (idx === -1) return;
     const pageForIdx = Math.floor(idx / PAGE_SIZE) + 1;
     if (pageForIdx !== currentPage) setCurrentPage(pageForIdx);
-  }, [selectedQuizId, selectableQuizzes]);
+  }, [selectedQuizId, filteredQuizzes]);
 
-  const totalPages = Math.max(1, Math.ceil(selectableQuizzes.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredQuizzes.length / PAGE_SIZE));
   const pageQuizzes = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
-    return selectableQuizzes.slice(start, start + PAGE_SIZE);
-  }, [selectableQuizzes, currentPage]);
+    return filteredQuizzes.slice(start, start + PAGE_SIZE);
+  }, [filteredQuizzes, currentPage]);
 
   const selectedQuiz = useMemo(
-    () => selectableQuizzes.find((quiz) => quiz.id === selectedQuizId) || selectableQuizzes[0],
-    [selectableQuizzes, selectedQuizId]
+    () => filteredQuizzes.find((quiz) => quiz.id === selectedQuizId) || filteredQuizzes[0],
+    [filteredQuizzes, selectedQuizId]
   );
 
   const selectedRealQuiz = useMemo(() => quizzes.find((quiz) => quiz.id === selectedQuiz?.id), [quizzes, selectedQuiz]);
@@ -219,6 +235,27 @@ export default function CreateRoomScreen() {
             </div>
 
             <div className="quiz-select-list">
+              <div className="quiz-search-row">
+                <input
+                  type="search"
+                  className="quiz-search-input"
+                  placeholder="Tìm quiz..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  aria-label="Tìm quiz"
+                />
+                <button
+                  type="button"
+                  className="quiz-search-clear"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Làm mới danh sách quiz"
+                >
+                  🔄
+                </button>
+              </div>
               {isLoading ? (
                 <div className="quiz-select-item selected">
                   <div className="quiz-icon" style={{ background: iconBackgrounds[0] }}>
