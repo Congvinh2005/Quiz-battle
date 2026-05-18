@@ -74,6 +74,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const hasRedirectedRef = useRef(false);
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const pendingOptimisticMessageIdRef = useRef<string | null>(null);
+  const lastAlertedErrorRef = useRef<string | null>(null);
 
   const isRoomNotFoundError = useCallback((err: any) => err?.response?.status === 404, []);
   const getErrorMessage = useCallback((err: any, fallback: string) => {
@@ -136,6 +137,20 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     if (!chatMessagesRef.current) return;
     chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
   }, [chatMessages.length]);
+
+  useEffect(() => {
+    if (!error) {
+      lastAlertedErrorRef.current = null;
+      return;
+    }
+
+    if (lastAlertedErrorRef.current === error) {
+      return;
+    }
+
+    lastAlertedErrorRef.current = error;
+    window.alert(error);
+  }, [error]);
 
   const notifyRoomClosedAndRedirect = useCallback((message: string) => {
     if (redirectTimeoutRef.current) return;
@@ -659,8 +674,6 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
           <div className="lobby-code">{displayRoomCode}</div>
         </div>
       </div>
-
-      {error && <div className="lobby-error">{error}</div>}
 
       {!currentUserInRoom && (
         <form className="join-form-card" onSubmit={handleJoinRoom}>
