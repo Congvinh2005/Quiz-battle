@@ -45,6 +45,8 @@ function formatDate(value?: string) {
   if (Number.isNaN(date.getTime())) return "Vừa tạo";
 
   return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -266,12 +268,15 @@ export default function DashboardScreen() {
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
-                    <span>{getQuestionCount(quiz) || "Chưa rõ"} câu hỏi</span>
-                    <span>{quiz.description || "Chưa có mô tả"}</span>
-                  </div>
-                  <div className="quiz-card-tags">
-                    <span className="tag">{quiz.is_public ? "Public" : "Private"}</span>
-                    {quiz.is_public && <span className="tag cyan">Có thể chia sẻ</span>}
+                    <div className="quiz-card-meta-info">
+                      <span>{quiz.description || "Chưa có mô tả"}</span>
+                    </div>
+                    <div className="quiz-card-tags">
+                      <span className={`tag ${quiz.is_public ? "public" : "private"}`}>
+                        {quiz.is_public ? "Public" : "Private"}
+                      </span>
+                      {quiz.is_public && <span className="tag cyan">Có thể chia sẻ</span>}
+                    </div>
                   </div>
                   <div className="quiz-card-footer">
                     <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>
@@ -342,12 +347,14 @@ export default function DashboardScreen() {
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
-                    <span>{getQuestionCount(quiz) || "Chưa rõ"} câu hỏi</span>
-                    <span>{quiz.description || "Chưa có mô tả"}</span>
-                  </div>
-                  <div className="quiz-card-tags">
-                    <span className="tag">Public</span>
-                    <span className="tag cyan">Có thể chia sẻ</span>
+                    <div className="quiz-card-meta-info">
+                      {/* <span>{getQuestionCount(quiz) || "Chưa rõ"} câu hỏi</span> */}
+                      <span>{quiz.description || "Chưa có mô tả"}</span>
+                    </div>
+                    <div className="quiz-card-tags">
+                      <span className="tag public">Public</span>
+                      <span className="tag cyan">Có thể chia sẻ</span>
+                    </div>
                   </div>
                   <div className="quiz-card-footer">
                     <span className="quiz-card-note">{formatDate(quiz.created_at)}</span>

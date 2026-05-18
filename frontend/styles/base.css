@@ -104,6 +104,8 @@ textarea {
   background: rgba(124,58,237,.15); color: var(--primary-light);
   border: 1px solid rgba(124,58,237,.2);
 }
+.tag.public { background: rgba(34,197,94,.15); color: #16a34a; border-color: rgba(34,197,94,.25); }
+.tag.private { background: rgba(148,163,184,.16); color: #64748b; border-color: rgba(148,163,184,.28); }
 .tag.cyan { background: rgba(6,182,212,.15); color: var(--accent); border-color: rgba(6,182,212,.2); }
 .tag.gold { background: rgba(245,158,11,.15); color: var(--gold); border-color: rgba(245,158,11,.2); }
 

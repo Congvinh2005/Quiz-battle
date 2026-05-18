@@ -1,4 +1,5 @@
 from uuid import UUID
+from datetime import timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -9,6 +10,16 @@ from app.models.quiz.questions import Question
 from app.models.quiz.quizzes import Quiz
 
 
+def _serialize_datetime(value) -> str | None:
+	if not value:
+		return None
+
+	if value.tzinfo is None:
+		value = value.replace(tzinfo=timezone.utc)
+
+	return value.isoformat()
+
+
 def _serialize_quiz_summary(quiz: Quiz, question_count: int, time_limit_sum: int) -> dict:
 	total_duration_seconds = int(time_limit_sum or 0) + (int(question_count or 0) * 3)
 	return {
@@ -17,6 +28,7 @@ def _serialize_quiz_summary(quiz: Quiz, question_count: int, time_limit_sum: int
 		"description": quiz.description,
 		"is_public": quiz.is_public,
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
+		"created_at": _serialize_datetime(quiz.created_at),
 		"question_count": int(question_count or 0),
 		"total_duration_seconds": total_duration_seconds,
 	}
@@ -52,6 +64,7 @@ def _serialize_quiz_detail(quiz: Quiz) -> dict:
 		"description": quiz.description,
 		"is_public": quiz.is_public,
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
+		"created_at": _serialize_datetime(quiz.created_at),
 		"questions": questions,
 	}
 
@@ -150,6 +163,7 @@ def create_quiz_with_questions(payload: dict, current_user: UUID, db: Session) -
 		"description": quiz.description,
 		"is_public": quiz.is_public,
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
+		"created_at": _serialize_datetime(quiz.created_at),
 	}
 
 
@@ -209,6 +223,7 @@ def update_quiz_with_questions(quiz_id: UUID, payload: dict, current_user: UUID,
 		"description": quiz.description,
 		"is_public": quiz.is_public,
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
+		"created_at": _serialize_datetime(quiz.created_at),
 	}
 
 
