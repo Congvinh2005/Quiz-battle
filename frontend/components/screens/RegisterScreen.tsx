@@ -150,7 +150,7 @@ export default function RegisterScreen() {
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
               >
-                {showPassword ? "👁" : "👁‍🗨"}
+                {showPassword ? "👁" : "🙈"}
               </button>
             </div>
             <div className="strength-bar">
@@ -178,7 +178,7 @@ export default function RegisterScreen() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 aria-label={showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
               >
-                {showConfirmPassword ? "👁" : "👁‍🗨"}
+                {showConfirmPassword ? "👁" : "🙈"}
               </button>
             </div>
           </div>

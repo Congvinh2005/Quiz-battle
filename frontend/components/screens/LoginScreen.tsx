@@ -83,7 +83,7 @@ export default function LoginScreen() {
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
               >
-                {showPassword ? "👁" : "👁‍🗨"}
+                {showPassword ? "👁" : "🙈"}
               </button>
             </div>
           </div>
