@@ -2,6 +2,7 @@
 export interface User {
   id: string;
   username: string;
+  full_name?: string | null;
   email: string;
   avatar_url?: string | null;
   created_at: string;
@@ -21,6 +22,7 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   username: string;
+  full_name?: string | null;
   email: string;
   password: string;
 }
@@ -121,6 +123,7 @@ export interface RoomPlayer {
   room_id: string;
   user_id: string;
   display_name: string;
+  full_name?: string | null;
   avatar_url?: string | null;
   score: number;
   joined_at: string;

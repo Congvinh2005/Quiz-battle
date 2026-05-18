@@ -95,9 +95,9 @@ export default function Navigation() {
               {user?.avatar_url ? (
                 <img className="nav-profile-avatar" src={user.avatar_url} alt="" />
               ) : (
-                <span className="nav-profile-avatar fallback">{(user?.username || "P").slice(0, 1).toUpperCase()}</span>
+                <span className="nav-profile-avatar fallback">{(user?.full_name || user?.username || "P").slice(0, 1).toUpperCase()}</span>
               )}
-              {user?.username || "Profile"}
+              {user?.full_name || user?.username || "Profile"}
             </button>
             {isProfileMenuOpen && (
               <div className="nav-profile-dropdown">

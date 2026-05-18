@@ -167,7 +167,7 @@ export default function DashboardScreen() {
   }, [publicQuizzes, appliedSearchQuery]);
 
   const pendingQuizCount = myQuizzes.length || 3;
-  const displayName = user?.username || "Minh Khoa";
+  const displayName = user?.full_name || user?.username || "Minh Khoa";
 
   const handleJoinRoom = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -18,6 +18,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const { user, updateUser } = useAuth();
   const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -31,6 +32,7 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
   useEffect(() => {
     if (!isOpen || !user) return;
     setUsername(user.username);
+    setFullName(user.full_name || "");
     setEmail(user.email);
     setAvatarUrl(user.avatar_url || "");
     setCurrentPassword("");
@@ -51,6 +53,7 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
       setMessage(null);
       const updatedUser = await authService.updateProfile({
         username,
+        full_name: fullName.trim() || null,
         email,
         avatar_url: avatarUrl.trim() || null,
       });
@@ -111,7 +114,11 @@ export default function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <p className="account-help">Xem và cập nhật tên hiển thị, email đăng nhập.</p>
             </div>
             <label className="account-field">
-              <span>Tên người dùng</span>
+              <span>Họ và tên</span>
+              <input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Nhập họ và tên ..." />
+            </label>
+            <label className="account-field">
+              <span>Tên tài khoản</span>
               <input value={username} onChange={(event) => setUsername(event.target.value)} required />
             </label>
             <label className="account-field">

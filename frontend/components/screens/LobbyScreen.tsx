@@ -15,6 +15,7 @@ interface LobbyScreenProps {
 interface DisplayPlayer {
   id: string;
   display_name: string;
+  full_name?: string | null;
   avatar_url?: string | null;
   score: number;
   isHost?: boolean;
@@ -61,7 +62,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatLine[]>([]);
   const [chatInput, setChatInput] = useState("");
-  const [joinDisplayName, setJoinDisplayName] = useState(user?.username || "");
+  const [joinDisplayName, setJoinDisplayName] = useState(user?.full_name || user?.username || "");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
@@ -467,7 +468,8 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
     return players.map((player) => ({
       id: player.id,
-      display_name: player.display_name,
+      display_name: player.full_name || player.display_name,
+      full_name: player.full_name,
       avatar_url: player.avatar_url,
       score: player.score,
       isHost: player.user_id === room?.host_id,

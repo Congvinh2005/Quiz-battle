@@ -11,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    user = register_user(db, user_data.username, user_data.email, user_data.password)
+    user = register_user(db, user_data.username, user_data.email, user_data.password, user_data.full_name)
     tokens = create_tokens(user.id)
 
     return TokenResponse(

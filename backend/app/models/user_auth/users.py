@@ -14,6 +14,7 @@ class User(BaseModel):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     username = Column(String(255), unique=True, nullable=False, index=True)
+    full_name = Column(String(255))
     email = Column(String(255), unique=True, nullable=False, index=True)
     avatar_url = Column(Text)
     password_hash = Column(Text, nullable=False)

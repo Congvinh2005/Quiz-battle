@@ -14,6 +14,7 @@ def _serialize_user(user: User):
     return {
         "id": str(user.id),
         "username": user.username,
+        "full_name": user.full_name,
         "email": user.email,
         "avatar_url": user.avatar_url,
         "created_at": user.created_at,
@@ -42,6 +43,7 @@ def update_me(payload: dict, current_user: UUID = Depends(get_current_user), db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     username = str(payload.get("username") or "").strip()
+    full_name = str(payload.get("full_name") or "").strip() or None
     email = str(payload.get("email") or "").strip().lower()
     avatar_url = str(payload.get("avatar_url") or "").strip() or None
 
@@ -59,6 +61,7 @@ def update_me(payload: dict, current_user: UUID = Depends(get_current_user), db:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
 
     user.username = username
+    user.full_name = full_name
     user.email = email
     user.avatar_url = avatar_url
     db.commit()

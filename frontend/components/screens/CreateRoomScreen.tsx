@@ -429,7 +429,7 @@ export default function CreateRoomScreen() {
             </div>
             <div className="preview-row">
               <span className="preview-row-label">Host</span>
-              <span className="preview-row-val">{user?.username || "Minh Khoa"} 👑</span>
+              <span className="preview-row-val">{user?.full_name || user?.username || "Minh Khoa"} 👑</span>
             </div>
           </div>
 

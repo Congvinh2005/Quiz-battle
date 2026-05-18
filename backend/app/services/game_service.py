@@ -38,6 +38,7 @@ def _serialize_player(player: RoomPlayer) -> dict:
 		"room_id": str(player.room_id),
 		"user_id": str(player.user_id),
 		"display_name": player.display_name,
+		"full_name": player.user.full_name if player.user else None,
 		"avatar_url": player.user.avatar_url if player.user else None,
 		"score": player.score,
 	}
@@ -157,6 +158,7 @@ def _player_payload_from_room_player(player: RoomPlayer) -> dict:
 		"room_id": str(player.room_id),
 		"user_id": str(player.user_id),
 		"display_name": player.display_name,
+		"full_name": player.user.full_name if player.user else None,
 		"avatar_url": player.user.avatar_url if player.user else None,
 		"score": int(player.score or 0),
 		"current_question_order": int(player.current_question_order or 0),

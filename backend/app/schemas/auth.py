@@ -5,6 +5,7 @@ from typing import Optional
 
 class UserRegister(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
+    full_name: Optional[str] = Field(None, max_length=255)
     email: EmailStr
     password: str = Field(..., min_length=6)
 
@@ -15,6 +16,7 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     username: str
+    full_name: Optional[str] = None
     email: str
     avatar_url: Optional[str] = None
     created_at: datetime

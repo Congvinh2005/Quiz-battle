@@ -7,13 +7,18 @@ from app.core.config import settings
 from app.core.exceptions import UserAlreadyExists, InvalidCredentials
 from app.services.redis_manager import save_refresh_token, validate_refresh_token, revoke_user_refresh_tokens
 
-def register_user(db: Session, username: str, email: str, password: str) -> User:
+def register_user(db: Session, username: str, email: str, password: str, full_name: str | None = None) -> User:
     user_exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
     if user_exists:
         raise UserAlreadyExists("Username or email already registered")
     
     hashed_password = hash_password(password)
-    user = User(username=username, email=email, password_hash=hashed_password)
+    user = User(
+        username=username,
+        full_name=(full_name or "").strip() or None,
+        email=email,
+        password_hash=hashed_password,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)

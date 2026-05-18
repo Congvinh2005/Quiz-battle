@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function RegisterScreen() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -66,7 +65,7 @@ export default function RegisterScreen() {
     setIsLoading(true);
 
     try {
-      await register(username, email, password);
+      await register(username, email, password, fullName);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Đăng ký thất bại");
@@ -109,25 +108,25 @@ export default function RegisterScreen() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Họ</label>
-              <input className="form-input" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Nguyễn" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Tên</label>
-              <input className="form-input" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Minh Khoa" />
-            </div>
+          <div className="form-group">
+            <label className="form-label">Họ và tên</label>
+            <input
+              className="form-input"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Nhập họ và tên ..."
+              required
+            />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Tên đăng nhập (username)</label>
-            <input className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="User name" required />
+            <label className="form-label">Tên tài khoản </label>
+            <input className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nhập tên tài khoản ..." required />
           </div>
 
           <div className="form-group">
             <label className="form-label">Email</label>
-            <input className="form-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+            <input className="form-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" required />
           </div>
 
           <div className="form-group">
@@ -142,7 +141,7 @@ export default function RegisterScreen() {
                   setPassword(value);
                   evaluatePassword(value);
                 }}
-                placeholder="Tối thiểu 8 ký tự, có chữ hoa và số"
+                placeholder="Ít nhất 8 ký tự, có chữ hoa, số và ký tự đặc biệt"
                 required
               />
               <button
@@ -170,7 +169,7 @@ export default function RegisterScreen() {
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Nhập lại mật khẩu"
+                placeholder="Nhập lại mật khẩu để xác nhận"
                 required
               />
               <button
