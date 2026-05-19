@@ -14,6 +14,7 @@ interface LobbyScreenProps {
 
 interface DisplayPlayer {
   id: string;
+  user_id?: string;
   display_name: string;
   full_name?: string | null;
   avatar_url?: string | null;
@@ -484,6 +485,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
     return players.map((player) => ({
       id: player.id,
+      user_id: player.user_id,
       display_name: player.full_name || player.display_name,
       full_name: player.full_name,
       avatar_url: player.avatar_url,
@@ -682,18 +684,32 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   return (
     <div className="lobby-wrap">
       <div className="lobby-header">
-        <div>
-          <h1 className="page-title">👥 Sảnh chờ</h1>
-          <p className="lobby-subtitle">Chờ mọi người vào đủ rồi bắt đầu!</p>
+        <div className="lobby-header-main">
+          <div className="lobby-title-row">
+            <div>
+              <h1 className="page-title">👥 Sảnh chờ</h1>
+              <p className="lobby-subtitle">Chờ mọi người vào đủ rồi bắt đầu!</p>
+            </div>
+            <div className="lobby-code-block">
+              <div className="lobby-code-label">Mã phòng</div>
+              <div className="lobby-code">{displayRoomCode}</div>
+            </div>
+          </div>
           {!isRealtimeReady && !roomClosedMessage && (
             <p className="lobby-subtitle" style={{ fontSize: "14px", opacity: 0.75 }}>
               Đang kết nối realtime...
             </p>
           )}
         </div>
-        <div className="lobby-code-block">
-          <div className="lobby-code-label">Mã phòng</div>
-          <div className="lobby-code">{displayRoomCode}</div>
+        <div className="quiz-preview-card lobby-header-quiz">
+          <div className="qp-icon">🌍</div>
+          <div className="qp-title">Bộ quiz: &quot;{room?.quiz?.title || "Địa Lý Thế Giới"}&quot;</div>
+          <div className="qp-meta">
+            <span>📝 {room?.quiz?.question_count || 10} câu hỏi</span>
+            <span>⏱ {room?.quiz?.total_duration_formatted || "~5m 30s"}</span>
+            <span>🔀 {room?.settings?.shuffle_questions ? "Câu hỏi bị shuffle" : "Câu hỏi không shuffle"}</span>
+            {room?.quiz_id && <span>Quiz ID: {room.quiz_id}</span>}
+          </div>
         </div>
       </div>
 
@@ -729,45 +745,52 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
           </div>
 
           <div className="players-grid">
-            {displayPlayers.map((player, index) => (
-              <div className={`player-chip${player.isHost ? " host" : ""}`} key={player.id} style={{ position: "relative" }}>
-                <div className="player-av" style={{ background: player.avatar_url ? undefined : avatarGradients[index % avatarGradients.length] }}>
-                  {player.avatar_url ? (
-                    <img src={player.avatar_url} alt="" />
-                  ) : (
-                    getInitials(player.display_name)
+            {displayPlayers.map((player, index) => {
+              const isMe = !!(player.user_id && user?.id && String(player.user_id) === String(user.id));
+
+              return (
+                <div className={`player-chip${player.isHost ? " host" : ""}`} key={player.id} style={{ position: "relative" }}>
+                  <div
+                    className={`player-av${player.avatar_url ? " has-image" : ""}`}
+                    style={{ background: player.avatar_url ? undefined : avatarGradients[index % avatarGradients.length] }}
+                  >
+                    {player.avatar_url ? (
+                      <img src={player.avatar_url} alt="" />
+                    ) : (
+                      getInitials(player.display_name)
+                    )}
+                  </div>
+                  <div className="player-name">{player.display_name}</div>
+                  {isMe ? <div className="player-badge">👤 Bạn</div> : player.isHost && <div className="player-badge">👑 Host</div>}
+                  {isCurrentUserHost && !player.isHost && (
+                    <button
+                      className="player-kick-btn"
+                      onClick={() => handleKickPlayer(player.id)}
+                      title="Kick player"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        backgroundColor: "rgba(239, 68, 68, 0.9)",
+                        border: "none",
+                        color: "white",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
                   )}
                 </div>
-                <div className="player-name">{player.display_name}</div>
-                {player.isHost && <div className="player-badge">👑 Host</div>}
-                {isCurrentUserHost && !player.isHost && (
-                  <button
-                    className="player-kick-btn"
-                    onClick={() => handleKickPlayer(player.id)}
-                    title="Kick player"
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      right: 0,
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                      backgroundColor: "rgba(239, 68, 68, 0.9)",
-                      border: "none",
-                      color: "white",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 0,
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
             {Array.from({ length: emptySlots }).map((_, index) => (
               <div className="player-chip empty" key={`empty-${index}`}>
@@ -781,18 +804,6 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         </section>
 
         <aside className="lobby-right">
-          <div className="quiz-preview-card">
-            <div className="qp-icon">🌍</div>
-            <div className="qp-title">Bộ quiz: &quot;{room?.quiz?.title || "Địa Lý Thế Giới"}&quot;</div>
-            <div className="qp-meta">
-              <span>📝 {room?.quiz?.question_count || 10} câu hỏi</span>
-              <span>⏱ {room?.quiz?.total_duration_formatted || "~5m 30s"}</span>
-
-              <span>🔀 {room?.settings?.shuffle_questions ? "Câu hỏi bị shuffle" : "Câu hỏi không shuffle"}</span>
-              {room?.quiz_id && <span>Quiz ID: {room.quiz_id}</span>}
-            </div>
-          </div>
-
           {isChatEnabled && (
             <div className="chat-card">
               <div className="chat-title">
