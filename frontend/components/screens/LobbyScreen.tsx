@@ -783,7 +783,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         <aside className="lobby-right">
           <div className="quiz-preview-card">
             <div className="qp-icon">🌍</div>
-            <div className="qp-title">{room?.quiz?.title || "Địa Lý Thế Giới"}</div>
+            <div className="qp-title">Bộ quiz: &quot;{room?.quiz?.title || "Địa Lý Thế Giới"}&quot;</div>
             <div className="qp-meta">
               <span>📝 {room?.quiz?.question_count || 10} câu hỏi</span>
               <span>⏱ {room?.quiz?.total_duration_formatted || "~5m 30s"}</span>
