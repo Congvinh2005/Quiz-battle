@@ -27,6 +27,7 @@ interface ChatLine {
   isHost?: boolean;
   name: string;
   text: string;
+  createdAt?: string;
 }
 
 const demoPlayers: DisplayPlayer[] = [
@@ -38,6 +39,19 @@ const demoPlayers: DisplayPlayer[] = [
   { id: "demo-5", display_name: "Bảo Khang", score: 0 },
   { id: "demo-6", display_name: "Thùy Linh", score: 0 },
 ];
+
+function formatChatTime(value?: string) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
 
 const avatarGradients = [
   "linear-gradient(135deg,var(--gold),#D97706)",
@@ -94,6 +108,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       isHost: !!(effectiveHostId && userId && String(userId) === String(effectiveHostId)),
       name: message?.user?.username || message?.name || "Người chơi",
       text: message?.message || message?.text || "",
+      createdAt: message?.created_at || message?.createdAt || new Date().toISOString(),
     };
   }, [hostUserId]);
   const ensureFreshAccessToken = useCallback(async () => {
@@ -398,6 +413,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
               user_id: data?.user_id,
               user: data?.user,
               message: data.message,
+              created_at: data?.created_at,
             }),
           ];
         });
@@ -503,6 +519,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         user_id: user?.id,
         user: { id: user?.id, username: user?.username },
         message: text,
+        created_at: new Date().toISOString(),
       };
 
       // Track this optimistic message so we can replace it when server responds
@@ -524,6 +541,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
               user_id: savedMessage.user_id,
               user: savedMessage.user,
               message: savedMessage.message,
+              created_at: savedMessage.created_at,
             });
             pendingOptimisticMessageIdRef.current = null;
             return updated;
@@ -790,6 +808,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
                       <div className="chat-msg-meta">
                         <span className="chat-msg-name">{message.userId === user?.id ? "Bạn" : message.name}</span>
                         {message.isHost && <span className="chat-host-badge">HOST</span>}
+                        {message.createdAt && <span className="chat-msg-time">{formatChatTime(message.createdAt)}</span>}
                       </div>
                       <div className="chat-msg-text">{message.text}</div>
                     </div>
