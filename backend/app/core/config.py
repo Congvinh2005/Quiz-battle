@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+    ROOM_SESSION_TTL_SECONDS: int = 86400
 
     # App Settings
     DEBUG: bool = True

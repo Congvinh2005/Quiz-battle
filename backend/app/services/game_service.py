@@ -684,6 +684,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 					},
 				},
 			)
+			redis_manager.delete_room_session(room.room_code)
 			db.delete(room)
 			db.commit()
 			return None
@@ -724,6 +725,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 			)
 			return None
 
+		departed_player = _serialize_player(player)
 		_mark_player_finished_on_leave(room, current_user, db)
 		await manager.broadcast(
 			room_code,
@@ -731,7 +733,7 @@ async def leave_room(room_code: str, current_user: UUID, db: Session) -> None:
 				"type": "PLAYER_LEFT",
 				"data": {
 					"room_code": room_code,
-					"player": _serialize_player(player),
+					"player": departed_player,
 					"players": [_serialize_player(remaining_player) for remaining_player in db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).all()],
 					"player_count": db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).count(),
 					"message": "Người chơi đã rời phòng trong lúc đang chơi, điểm đã được giữ lại.",
@@ -959,8 +961,8 @@ def _finalize_game_results(room: GameRoom, db: Session) -> list:
 			room.status = "FINISHED"
 			room.ended_at = datetime.now(timezone.utc)
 
-		players = redis_manager.get_room_players(room.room_code, include_left=False)
-		players_by_user_id = {str(player.get("user_id")): player for player in players if player.get("status") != "LEFT"}
+		players = redis_manager.get_room_players(room.room_code, include_left=True)
+		players_by_user_id = {str(player.get("user_id")): player for player in players}
 		final_leaderboard = redis_manager.get_leaderboard(room.room_code)
 		existing_results = {
 			str(result.user_id): result

@@ -141,6 +141,28 @@ class RedisManager:
     def _left_key(self, room_code: str) -> str:
         return f"{self._room_prefix(room_code)}:left"
 
+    def _room_keys(self, room_code: str) -> tuple[str, ...]:
+        return (
+            self._meta_key(room_code),
+            self._players_key(room_code),
+            self._scores_key(room_code),
+            self._questions_key(room_code),
+            self._answers_key(room_code),
+            self._active_key(room_code),
+            self._finished_key(room_code),
+            self._left_key(room_code),
+        )
+
+    def _expire_room_session(self, room_code: str) -> None:
+        ttl_seconds = int(settings.ROOM_SESSION_TTL_SECONDS or 0)
+        if ttl_seconds <= 0:
+            return
+
+        pipeline = self.client.pipeline()
+        for key in self._room_keys(room_code):
+            pipeline.expire(key, ttl_seconds)
+        pipeline.execute()
+
     def _json_dumps(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
 
@@ -153,16 +175,7 @@ class RedisManager:
             return default
 
     def delete_room_session(self, room_code: str) -> None:
-        self.client.delete(
-            self._meta_key(room_code),
-            self._players_key(room_code),
-            self._scores_key(room_code),
-            self._questions_key(room_code),
-            self._answers_key(room_code),
-            self._active_key(room_code),
-            self._finished_key(room_code),
-            self._left_key(room_code),
-        )
+        self.client.delete(*self._room_keys(room_code))
 
     def initialize_game_session(
         self,
@@ -222,6 +235,7 @@ class RedisManager:
                 pipeline.sadd(self._active_key(room_code), *active_members)
 
         pipeline.execute()
+        self._expire_room_session(room_code)
 
     def room_exists(self, room_code: str) -> bool:
         return bool(self.client.exists(self._meta_key(room_code)))
@@ -268,6 +282,7 @@ class RedisManager:
 
     def set_player(self, room_code: str, user_id: str, player_data: dict[str, Any]) -> None:
         self.client.hset(self._players_key(room_code), user_id, self._json_dumps(player_data))
+        self._expire_room_session(room_code)
 
     def get_player(self, room_code: str, user_id: str) -> dict[str, Any] | None:
         player = self.client.hget(self._players_key(room_code), user_id)
@@ -290,6 +305,7 @@ class RedisManager:
         pipeline.srem(self._active_key(room_code), user_id)
         pipeline.sadd(self._finished_key(room_code), user_id)
         pipeline.execute()
+        self._expire_room_session(room_code)
 
     def set_player_left(self, room_code: str, user_id: str) -> None:
         player = self.get_player(room_code, user_id)
@@ -301,9 +317,12 @@ class RedisManager:
         pipeline.srem(self._finished_key(room_code), user_id)
         pipeline.sadd(self._left_key(room_code), user_id)
         pipeline.execute()
+        self._expire_room_session(room_code)
 
     def increment_score(self, room_code: str, user_id: str, points: int) -> int:
-        return int(self.client.hincrby(self._scores_key(room_code), user_id, int(points)))
+        score = int(self.client.hincrby(self._scores_key(room_code), user_id, int(points)))
+        self._expire_room_session(room_code)
+        return score
 
     def get_score(self, room_code: str, user_id: str) -> int:
         return int(self.client.hget(self._scores_key(room_code), user_id) or 0)
@@ -311,6 +330,7 @@ class RedisManager:
     def store_answer(self, room_code: str, user_id: str, question_id: str, answer_payload: dict[str, Any]) -> None:
         key = f"{user_id}:{question_id}"
         self.client.hset(self._answers_key(room_code), key, self._json_dumps(answer_payload))
+        self._expire_room_session(room_code)
 
     def has_answer(self, room_code: str, user_id: str, question_id: str) -> bool:
         key = f"{user_id}:{question_id}"
@@ -332,8 +352,8 @@ class RedisManager:
         return {key: self._json_loads(value, {}) for key, value in answers.items()}
 
     def get_competing_players(self, room_code: str) -> list[dict[str, Any]]:
-        players = self.get_room_players(room_code, include_left=False)
-        return [player for player in players if player.get("status") in ("ACTIVE", "FINISHED")]
+        players = self.get_room_players(room_code, include_left=True)
+        return [player for player in players if player.get("status") in ("ACTIVE", "FINISHED", "LEFT")]
 
     def get_leaderboard(self, room_code: str) -> list[dict[str, Any]]:
         scores = self.get_room_scores(room_code)
