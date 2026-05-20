@@ -175,6 +175,51 @@ export interface UserStats {
   updated_at: string;
 }
 
+export interface StatisticsAnswer {
+  id: string;
+  question_id: string;
+  question: string;
+  question_type?: QuestionType | null;
+  time_limit?: number | null;
+  selected_option_id?: string | null;
+  selected_option?: string | null;
+  correct_option?: string | null;
+  options: Array<{
+    id: string;
+    content: string;
+    is_correct: boolean;
+  }>;
+  is_correct: boolean;
+  response_time?: number | null;
+}
+
+export interface PlayedQuizStat {
+  result_id: string;
+  room_id: string;
+  room_code?: string | null;
+  quiz_id?: string | null;
+  quiz_title: string;
+  final_score: number;
+  rank?: number | null;
+  played_at?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  correct_count: number;
+  answer_count: number;
+  answers: StatisticsAnswer[];
+}
+
+export interface StatisticsResponse {
+  summary: {
+    total_games: number;
+    total_score: number;
+    avg_score: number;
+    wins: number;
+    played_quiz_count: number;
+  };
+  played_quizzes: PlayedQuizStat[];
+}
+
 // WebSocket Events
 export interface WSGameState {
   current_question: Question;

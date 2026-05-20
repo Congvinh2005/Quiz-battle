@@ -48,6 +48,7 @@ export default function Navigation() {
   const isResultsPage = pathname.startsWith("/results/");
   const isEditorPage = pathname === "/editor";
   const isEditQuizPage = pathname.startsWith("/editor/");
+  const isStatisticsPage = pathname === "/statistics";
   const editQuizId = isEditQuizPage ? pathname.split("/")[2] : null;
 
   const navItems = [
@@ -61,6 +62,7 @@ export default function Navigation() {
       ? [{ href: `/editor/${editQuizId}`, label: "✏️ Sửa Quiz", active: true }]
       : []),
     { href: "/create-room", label: "🎮 Tạo phòng", active: pathname === "/create-room" },
+    { href: "/statistics", label: "📊 Thống kê", active: isStatisticsPage },
     ...(activeRoomCode && isRoomPage
       ? [{ href: `/room/${activeRoomCode}`, label: "👥 Lobby", active: true }]
       : []),

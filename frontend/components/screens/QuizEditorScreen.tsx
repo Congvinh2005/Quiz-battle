@@ -685,7 +685,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                 className={`qe-type-btn${activeQuestion.type === "MCQ" ? " active" : ""}`}
                 onClick={() => handleTypeChange("MCQ")}
               >
-                Trắc nghiệm
+                Chọn câu
               </button>
               <button
                 className={`qe-type-btn${activeQuestion.type === "TRUE_FALSE" ? " active" : ""}`}
