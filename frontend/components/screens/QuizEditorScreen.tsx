@@ -71,6 +71,12 @@ function normalizeOptions(type: QuestionType, options?: string[]) {
   return options?.length === 4 ? options : ["", "", "", ""];
 }
 
+const setupModeLabels: Record<SetupMode, string> = {
+  sample: "Đã chọn: Dùng câu mẫu",
+  blank: "Đã chọn: Tạo từ đầu",
+  import: "Đã chọn: Import câu hỏi",
+};
+
 export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const router = useRouter();
   const quizTitleInputRef = useRef<HTMLInputElement>(null);
@@ -80,8 +86,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(quizId ? true : false);
+  const [showInitialSetup, setShowInitialSetup] = useState(!quizId);
   const [showSetup, setShowSetup] = useState(false);
-  const [selectedSetupMode, setSelectedSetupMode] = useState<SetupMode | null>(null);
+  const [selectedSetupMode, setSelectedSetupMode] = useState<SetupMode | null>("sample");
   const [importFileName, setImportFileName] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -197,6 +204,45 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     }
   };
 
+  const continueFromInitialSetup = async () => {
+    if (!quizTitle.trim()) {
+      alert("Vui lòng nhập tên quiz trước khi tiếp tục.");
+      quizTitleInputRef.current?.focus();
+      return;
+    }
+
+    if (!selectedSetupMode) {
+      alert("Vui lòng chọn cách thêm câu hỏi.");
+      return;
+    }
+
+    if (selectedSetupMode === "sample") {
+      setQuestions(initialQuestions);
+      setActiveIndex(0);
+      setShowInitialSetup(false);
+      return;
+    }
+
+    if (selectedSetupMode === "blank") {
+      setQuestions([{ ...blankQuestion, id: `q${Date.now()}` }]);
+      setActiveIndex(0);
+      setShowInitialSetup(false);
+      return;
+    }
+
+    if (selectedSetupMode === "import") {
+      if (!importFile) {
+        alert("Vui lòng chọn file câu hỏi trước khi tiếp tục.");
+        return;
+      }
+
+      const imported = await handleImportFile();
+      if (imported) {
+        setShowInitialSetup(false);
+      }
+    }
+  };
+
   const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -208,7 +254,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const handleImportFile = async () => {
     if (!importFile) {
       alert("Vui lòng chọn file trước");
-      return;
+      return false;
     }
 
     setIsImporting(true);
@@ -230,9 +276,11 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
       setActiveIndex(0);
       setShowSetup(false);
       alert(`✅ Đã import thành công ${convertedQuestions.length} câu hỏi!`);
+      return true;
     } catch (error) {
       console.error("Import error:", error);
       alert(`❌ Lỗi import file: ${error instanceof Error ? error.message : "Unknown error"}`);
+      return false;
     } finally {
       setIsImporting(false);
     }
@@ -266,6 +314,19 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
       return next;
     });
     setActiveIndex((current) => current - 1);
+  };
+
+  const handleMoveDown = () => {
+    if (activeIndex >= questions.length - 1) return;
+
+    setQuestions((current) => {
+      const next = [...current];
+      const currentQuestion = next[activeIndex];
+      next[activeIndex] = next[activeIndex + 1];
+      next[activeIndex + 1] = currentQuestion;
+      return next;
+    });
+    setActiveIndex((current) => current + 1);
   };
 
   const validateQuizTitle = () => {
@@ -367,6 +428,114 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     );
   }
 
+  if (showInitialSetup) {
+    return (
+      <div className="editor-wrap setup-mode">
+        <main className="editor-main setup-main">
+          <div className="setup-panel quiz-start-panel">
+            <div className="setup-kicker">Tạo Quiz</div>
+            <h1 className="setup-title">Thiết lập quiz trước khi vào editor</h1>
+            <p className="setup-sub">Nhập thông tin cơ bản và chọn cách bạn muốn bắt đầu thêm câu hỏi.</p>
+
+            <div className="quiz-start-form">
+              <label className="quiz-start-field">
+                <span>Tên quiz</span>
+                <input
+                  ref={quizTitleInputRef}
+                  className="form-input"
+                  placeholder="Nhập tên quiz, ví dụ: Hackathon Quiz 2026"
+                  required
+                  value={quizTitle}
+                  onChange={(event) => setQuizTitle(event.target.value)}
+                />
+              </label>
+
+              <div className="quiz-start-field">
+                <span>Chế độ hiển thị</span>
+                <div className="visibility-segment">
+                  <button
+                    className={`visibility-choice${visibility === "private" ? " active" : ""}`}
+                    onClick={() => setVisibility("private")}
+                    type="button"
+                  >
+                    Private
+                  </button>
+                  <button
+                    className={`visibility-choice${visibility === "public" ? " active" : ""}`}
+                    onClick={() => setVisibility("public")}
+                    type="button"
+                  >
+                    Public
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="setup-option-grid quiz-start-options">
+              <button
+                className={`setup-option-card${selectedSetupMode === "sample" ? " active" : ""}`}
+                onClick={() => setSelectedSetupMode("sample")}
+                type="button"
+              >
+                <div className="setup-option-icon">✨</div>
+                <div className="setup-option-title">Dùng câu mẫu</div>
+                <div className="setup-option-desc">Vào editor với 3 câu demo để chỉnh sửa nhanh.</div>
+              </button>
+
+              <button
+                className={`setup-option-card${selectedSetupMode === "blank" ? " active" : ""}`}
+                onClick={() => setSelectedSetupMode("blank")}
+                type="button"
+              >
+                <div className="setup-option-icon">🧩</div>
+                <div className="setup-option-title">Tạo từ đầu</div>
+                <div className="setup-option-desc">Bắt đầu bằng một câu hỏi trống.</div>
+              </button>
+
+              <div
+                className={`setup-option-card import-card${selectedSetupMode === "import" ? " active" : ""}`}
+                onClick={() => setSelectedSetupMode("import")}
+              >
+                <div className="setup-option-icon">📥</div>
+                <div className="setup-option-title">Import câu hỏi</div>
+                <div className="setup-option-desc">Chọn file Excel, CSV hoặc Word để đưa câu hỏi vào editor.</div>
+
+                <label className="import-file-picker" onClick={(event) => event.stopPropagation()}>
+                  Chọn file (.xlsx, .xls, .csv, .doc, .docx)
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv,.doc,.docx"
+                    onChange={(event) => {
+                      setSelectedSetupMode("import");
+                      handleImportFileChange(event);
+                    }}
+                  />
+                </label>
+
+                <div className="import-file-name">
+                  {importFileName ? `Đã chọn file: ${importFileName}` : "Chưa chọn file"}
+                </div>
+              </div>
+            </div>
+
+            {selectedSetupMode ? (
+              <div className="setup-selected-note">{setupModeLabels[selectedSetupMode]}</div>
+            ) : null}
+
+            <div className="setup-actions">
+              <button className="setup-back-btn" onClick={() => router.push("/dashboard")} type="button">
+                Hủy
+              </button>
+              <button className="setup-continue-btn" onClick={continueFromInitialSetup} disabled={isImporting} type="button">
+                {isImporting ? "Đang xử lý..." : "Tiếp tục"}
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (showSetup) {
     return (
       <div className="editor-wrap setup-mode">
@@ -411,7 +580,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                   />
                 </label>
 
-                <div className="import-file-name">{importFileName || "Chưa chọn file"}</div>
+                <div className="import-file-name">
+                  {importFileName ? `Đã chọn file: ${importFileName}` : "Chưa chọn file"}
+                </div>
 
                 <div className="import-preview-note">
                   Hỗ trợ: Excel (.xlsx, .xls), CSV, Word (.docx). Hệ thống sẽ tự phát hiện đáp án đúng từ phần bôi vàng.
@@ -499,7 +670,10 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
               🗑 Xóa
             </button>
             <button className="editor-icon-btn strong" onClick={handleMoveUp}>
-              ⬆ Di chuyển
+              ⬆ Lên
+            </button>
+            <button className="editor-icon-btn strong" onClick={handleMoveDown}>
+              ⬇ Xuống
             </button>
           </div>
         </div>
@@ -547,7 +721,19 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
           <div className="answers-label">Đáp án (chọn đáp án đúng ✓):</div>
           <div className="options-editor">
             {visibleOptions.map((option, index) => (
-              <div className={`option-editor${activeQuestion.correctIndex === index ? " correct" : ""}`} key={letters[index]}>
+              <div
+                className={`option-editor${activeQuestion.correctIndex === index ? " correct" : ""}`}
+                key={letters[index]}
+                onClick={() => updateActiveQuestion({ correctIndex: index })}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    updateActiveQuestion({ correctIndex: index });
+                  }
+                }}
+              >
                 <div className="opt-letter">{letters[index]}</div>
                 <input
                   className="opt-input"
@@ -560,6 +746,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                   className={`opt-correct-btn${activeQuestion.correctIndex === index ? " checked" : ""}`}
                   onClick={() => updateActiveQuestion({ correctIndex: index })}
                   aria-label={`Chọn đáp án ${letters[index]} là đúng`}
+                  type="button"
                 >
                   {activeQuestion.correctIndex === index ? "✓" : ""}
                 </button>

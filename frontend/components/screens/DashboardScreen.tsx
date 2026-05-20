@@ -320,15 +320,12 @@ export default function DashboardScreen() {
                   <span>
                     {appliedSearchQuery
                       ? "Thử từ khóa khác hoặc bấm Tìm với từ khóa mới."
-                      : "Tạo quiz đầu tiên để dashboard hiển thị dữ liệu thật."}
+                      : "Bạn chưa tạo quiz nào. Bắt đầu với một bộ câu hỏi mới nhé."}
                   </span>
                 </div>
-                <div className="quiz-card-tags">
-                  <span className="tag gold">Bắt đầu</span>
-                </div>
                 <div className="quiz-card-footer">
-                  <span className="quiz-card-note">Dữ liệu API đang rỗng</span>
-                  <button className="play-btn" onClick={() => router.push("/editor")}>
+                  <span className="quiz-card-note">Sẵn sàng tạo quiz đầu tiên</span>
+                  <button className="play-btn compact" onClick={() => router.push("/editor")}>
                     + Tạo quiz
                   </button>
                 </div>
@@ -373,14 +370,11 @@ export default function DashboardScreen() {
                   <span>
                     {appliedSearchQuery
                       ? "Thử từ khóa khác để tìm quiz công khai."
-                      : "Chưa có quiz công khai từ người dùng khác."}
+                      : "Hiện chưa có quiz công khai nào để khám phá."}
                   </span>
                 </div>
-                <div className="quiz-card-tags">
-                  <span className="tag">Trống</span>
-                </div>
                 <div className="quiz-card-footer">
-                  <span className="quiz-card-note">Quay lại sau</span>
+                  <span className="quiz-card-note">Hãy thử lại sau hoặc tự tạo quiz mới</span>
                 </div>
               </article>
             )}

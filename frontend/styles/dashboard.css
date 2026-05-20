@@ -346,6 +346,10 @@
   justify-content: center;
 }
 
+.play-btn.compact {
+  flex: 0 0 auto;
+}
+
 .play-btn:hover {
   background: var(--primary-light);
 }
