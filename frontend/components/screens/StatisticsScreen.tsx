@@ -8,13 +8,15 @@ type ReviewFilter = "all" | "correct" | "wrong";
 
 function formatDate(value?: string | null) {
   if (!value) return "Chưa rõ";
+  const normalizedValue = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}Z`;
   return new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(new Date(normalizedValue));
 }
 
 function accuracyOf(item: PlayedQuizStat) {
@@ -39,6 +41,7 @@ export default function StatisticsScreen() {
   const [data, setData] = useState<StatisticsResponse | null>(null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
+  const [playedSearch, setPlayedSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +65,17 @@ export default function StatisticsScreen() {
   }, []);
 
   const playedQuizzes = data?.played_quizzes ?? [];
+  const filteredPlayedQuizzes = useMemo(() => {
+    const query = playedSearch.trim().toLowerCase();
+    if (!query) return playedQuizzes;
+
+    return playedQuizzes.filter((item) => {
+      return (
+        item.quiz_title.toLowerCase().includes(query) ||
+        (item.room_code || "").toLowerCase().includes(query)
+      );
+    });
+  }, [playedQuizzes, playedSearch]);
   const selectedQuiz = useMemo(
     () => playedQuizzes.find((item) => item.result_id === selectedResultId) ?? playedQuizzes[0],
     [playedQuizzes, selectedResultId],
@@ -128,23 +142,33 @@ export default function StatisticsScreen() {
         <section className="statistics-layout">
           <aside className="played-list">
             <div className="stats-section-title">Quiz đã làm</div>
-            {playedQuizzes.map((item) => (
-              <button
-                className={`played-item${selectedQuiz?.result_id === item.result_id ? " active" : ""}`}
-                key={item.result_id}
-                onClick={() => {
-                  setSelectedResultId(item.result_id);
-                  setReviewFilter("all");
-                }}
-                type="button"
-              >
-                <span className="played-title">{item.quiz_title}</span>
-                <span className="played-meta">
-                  {item.final_score} điểm · Hạng {item.rank ?? "-"} · {accuracyOf(item)}%
-                </span>
-                <span className="played-date">{formatDate(item.played_at)}</span>
-              </button>
-            ))}
+            <input
+              className="played-search-input"
+              value={playedSearch}
+              onChange={(event) => setPlayedSearch(event.target.value)}
+              placeholder="Tìm quiz đã làm..."
+            />
+            <div className="played-list-scroll">
+              {filteredPlayedQuizzes.length > 0 ? filteredPlayedQuizzes.map((item) => (
+                <button
+                  className={`played-item${selectedQuiz?.result_id === item.result_id ? " active" : ""}`}
+                  key={item.result_id}
+                  onClick={() => {
+                    setSelectedResultId(item.result_id);
+                    setReviewFilter("all");
+                  }}
+                  type="button"
+                >
+                  <span className="played-title">{item.quiz_title}</span>
+                  <span className="played-meta">
+                    {item.final_score} điểm · Hạng {item.rank ?? "-"} · {accuracyOf(item)}%
+                  </span>
+                  <span className="played-date">{formatDate(item.played_at)}</span>
+                </button>
+              )) : (
+                <div className="played-empty">Không tìm thấy quiz phù hợp.</div>
+              )}
+            </div>
           </aside>
 
           <section className="answer-review">
@@ -221,7 +245,7 @@ export default function StatisticsScreen() {
                                 <span>ID: {answer.question_id.slice(0, 8)}</span>
                                 <span className="review-question-chip">{questionTypeLabel(answer.question_type)}</span>
                                 <span className="review-question-chip time">
-                                  Làm trong {formatResponseTime(answer.response_time)}
+                                  {formatResponseTime(answer.response_time)}
                                   {answer.time_limit ? ` / ${answer.time_limit}s` : ""}
                                 </span>
                                 {!answer.selected_option_id ? (
@@ -253,9 +277,6 @@ export default function StatisticsScreen() {
                                   Đáp án đúng: {correctLetter}
                                 </span>
                                 <div className="review-answer-buttons">
-                                  {!answer.selected_option_id ? (
-                                    <span className="review-answer-chip missed">Chưa trả lời</span>
-                                  ) : null}
                                   {answer.options.map((option, optionIndex) => {
                                     const isCorrect = option.is_correct;
                                     const isSelected = option.id === answer.selected_option_id;

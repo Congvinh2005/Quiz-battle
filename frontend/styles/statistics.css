@@ -80,6 +80,49 @@
 
 .played-list {
   padding: 16px;
+  align-self: start;
+}
+
+.played-search-input {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: #f8fbff;
+  color: var(--text);
+  outline: none;
+  font-family: "DM Sans", sans-serif;
+}
+
+.played-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.played-empty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.played-list-scroll {
+  max-height: 704px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.played-list-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.played-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.played-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.28);
+  border-radius: 999px;
 }
 
 .stats-section-title {
@@ -491,6 +534,16 @@
 
 .dark-mode .played-item {
   color: var(--text);
+}
+
+.dark-mode .played-search-input {
+  background: var(--surface2);
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+.dark-mode .played-search-input::placeholder {
+  color: var(--muted);
 }
 
 .dark-mode .played-item:hover,
