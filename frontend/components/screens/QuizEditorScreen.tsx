@@ -23,7 +23,8 @@ interface EditorQuestion {
   correctIndex: number;
 }
 
-const letters = ["A", "B", "C", "D"];
+const letters = ["A", "B", "C", "D", "E", "F", "G", "H"];
+const maxChoiceOptions = 8;
 const timeOptions = [10, 20, 30, 60];
 
 const initialQuestions: EditorQuestion[] = [
@@ -67,8 +68,16 @@ const blankQuestion: EditorQuestion = {
 };
 
 function normalizeOptions(type: QuestionType, options?: string[]) {
-  if (type === "TRUE_FALSE") return ["Đúng", "Sai", "", ""];
-  return options?.length === 4 ? options : ["", "", "", ""];
+  if (type === "TRUE_FALSE") return ["Đúng", "Sai"];
+  return options && options.length >= 2 ? options : ["", "", "", ""];
+}
+
+function getQuestionOptions(question: EditorQuestion) {
+  return question.type === "TRUE_FALSE" ? question.options.slice(0, 2) : question.options;
+}
+
+function optionLetter(index: number) {
+  return letters[index] || String.fromCharCode(65 + index);
 }
 
 const setupModeLabels: Record<SetupMode, string> = {
@@ -133,7 +142,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
   const activeQuestion = questions[activeIndex] ?? questions[0];
   const visibleOptions = useMemo(
-    () => activeQuestion.options.slice(0, activeQuestion.type === "TRUE_FALSE" ? 2 : 4),
+    () => getQuestionOptions(activeQuestion),
     [activeQuestion]
   );
 
@@ -155,6 +164,28 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     const nextOptions = [...activeQuestion.options];
     nextOptions[optionIndex] = event.target.value;
     updateActiveQuestion({ options: nextOptions });
+  };
+
+  const handleAddOption = () => {
+    if (activeQuestion.type !== "MCQ" || activeQuestion.options.length >= maxChoiceOptions) return;
+    updateActiveQuestion({ options: [...activeQuestion.options, ""] });
+  };
+
+  const handleRemoveOption = (optionIndex: number) => {
+    if (activeQuestion.type !== "MCQ" || activeQuestion.options.length <= 2) return;
+
+    const nextOptions = activeQuestion.options.filter((_, index) => index !== optionIndex);
+    const nextCorrectIndex =
+      activeQuestion.correctIndex === optionIndex
+        ? 0
+        : activeQuestion.correctIndex > optionIndex
+          ? activeQuestion.correctIndex - 1
+          : activeQuestion.correctIndex;
+
+    updateActiveQuestion({
+      options: nextOptions,
+      correctIndex: Math.min(nextCorrectIndex, nextOptions.length - 1),
+    });
   };
 
   const handleAddQuestion = () => {
@@ -353,7 +384,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
           time_limit: q.timeLimit,
           points: q.points,
           order_index: questions.indexOf(q),
-          answer_options: q.options.map((opt, idx) => ({
+          answer_options: getQuestionOptions(q).map((opt, idx) => ({
             content: opt,
             is_correct: idx === q.correctIndex,
           })),
@@ -391,7 +422,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
           time_limit: q.timeLimit,
           points: q.points,
           order_index: questions.indexOf(q),
-          answer_options: q.options.map((opt, idx) => ({
+          answer_options: getQuestionOptions(q).map((opt, idx) => ({
             content: opt,
             is_correct: idx === q.correctIndex,
           })),
@@ -718,12 +749,24 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
             onChange={(event) => updateActiveQuestion({ text: event.target.value })}
           />
 
-          <div className="answers-label">Đáp án (chọn đáp án đúng ✓):</div>
+          <div className="answers-toolbar">
+            <div className="answers-label">Đáp án (chọn đáp án đúng ✓):</div>
+            {activeQuestion.type === "MCQ" ? (
+              <button
+                className="add-option-btn"
+                onClick={handleAddOption}
+                disabled={activeQuestion.options.length >= maxChoiceOptions}
+                type="button"
+              >
+                + Thêm đáp án
+              </button>
+            ) : null}
+          </div>
           <div className="options-editor">
             {visibleOptions.map((option, index) => (
               <div
                 className={`option-editor${activeQuestion.correctIndex === index ? " correct" : ""}`}
-                key={letters[index]}
+                key={optionLetter(index)}
                 onClick={() => updateActiveQuestion({ correctIndex: index })}
                 role="button"
                 tabIndex={0}
@@ -734,22 +777,38 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                   }
                 }}
               >
-                <div className="opt-letter">{letters[index]}</div>
+                <div className="opt-letter">{optionLetter(index)}</div>
                 <input
                   className="opt-input"
                   value={option}
                   onChange={(event) => handleOptionChange(index, event)}
                   readOnly={activeQuestion.type === "TRUE_FALSE"}
-                  placeholder={`Đáp án ${letters[index]}`}
+                  placeholder={`Đáp án ${optionLetter(index)}`}
                 />
                 <button
                   className={`opt-correct-btn${activeQuestion.correctIndex === index ? " checked" : ""}`}
-                  onClick={() => updateActiveQuestion({ correctIndex: index })}
-                  aria-label={`Chọn đáp án ${letters[index]} là đúng`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    updateActiveQuestion({ correctIndex: index });
+                  }}
+                  aria-label={`Chọn đáp án ${optionLetter(index)} là đúng`}
                   type="button"
                 >
                   {activeQuestion.correctIndex === index ? "✓" : ""}
                 </button>
+                {activeQuestion.type === "MCQ" && activeQuestion.options.length > 2 ? (
+                  <button
+                    className="opt-remove-btn"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRemoveOption(index);
+                    }}
+                    aria-label={`Xóa đáp án ${optionLetter(index)}`}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>
@@ -766,11 +825,11 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
               return (
                 <div
                   className={`preview-option${isCorrect ? " correct" : ""}${isFirstWrong ? " wrong" : ""}`}
-                  key={letters[index]}
+                  key={optionLetter(index)}
                 >
-                  <span className="preview-letter">{letters[index]}</span>
+                  <span className="preview-letter">{optionLetter(index)}</span>
                   <span className="preview-option-text">
-                    {option || `Đáp án ${letters[index]}`} {isCorrect ? "✓" : ""}
+                    {option || `Đáp án ${optionLetter(index)}`} {isCorrect ? "✓" : ""}
                   </span>
                 </div>
               );

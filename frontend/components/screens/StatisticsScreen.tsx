@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { statisticsService } from "@/services/statisticsService";
 import { PlayedQuizStat, StatisticsResponse } from "@/types";
 
+type ReviewFilter = "all" | "correct" | "wrong";
+
 function formatDate(value?: string | null) {
   if (!value) return "Chưa rõ";
   return new Intl.DateTimeFormat("vi-VN", {
@@ -20,7 +22,9 @@ function accuracyOf(item: PlayedQuizStat) {
   return Math.round((item.correct_count / item.answer_count) * 100);
 }
 
-const optionLetters = ["A", "B", "C", "D"];
+function optionLetter(index: number) {
+  return String.fromCharCode(65 + index);
+}
 
 function questionTypeLabel(type?: string | null) {
   return type === "TRUE_FALSE" ? "Đúng / Sai" : "Chọn câu";
@@ -34,6 +38,7 @@ function formatResponseTime(value?: number | null) {
 export default function StatisticsScreen() {
   const [data, setData] = useState<StatisticsResponse | null>(null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +66,12 @@ export default function StatisticsScreen() {
     () => playedQuizzes.find((item) => item.result_id === selectedResultId) ?? playedQuizzes[0],
     [playedQuizzes, selectedResultId],
   );
+  const filteredAnswers = useMemo(() => {
+    const answers = selectedQuiz?.answers ?? [];
+    if (reviewFilter === "correct") return answers.filter((answer) => answer.is_correct);
+    if (reviewFilter === "wrong") return answers.filter((answer) => !answer.is_correct);
+    return answers;
+  }, [selectedQuiz, reviewFilter]);
 
   if (isLoading) {
     return (
@@ -121,7 +132,10 @@ export default function StatisticsScreen() {
               <button
                 className={`played-item${selectedQuiz?.result_id === item.result_id ? " active" : ""}`}
                 key={item.result_id}
-                onClick={() => setSelectedResultId(item.result_id)}
+                onClick={() => {
+                  setSelectedResultId(item.result_id);
+                  setReviewFilter("all");
+                }}
                 type="button"
               >
                 <span className="played-title">{item.quiz_title}</span>
@@ -165,21 +179,40 @@ export default function StatisticsScreen() {
                   <div className="review-detail">
                     <div className="review-topbar">
                       <div className="review-topbar-icon">◧</div>
-                      <h2>{selectedQuiz.quiz_title}</h2>
-                      <div className="review-topbar-actions">
-                        <span className="review-pill correct">Đúng & sai</span>
-                        <span className="review-pill shuffle">Đề đảo</span>
+                      <h2>Bộ quiz: &quot;{selectedQuiz.quiz_title}&quot;</h2>
+                    <div className="review-topbar-actions">
+                        <button
+                          className={`review-pill all${reviewFilter === "all" ? " active" : ""}`}
+                          onClick={() => setReviewFilter("all")}
+                          type="button"
+                        >
+                          Tất cả
+                        </button>
+                        <button
+                          className={`review-pill correct${reviewFilter === "correct" ? " active" : ""}`}
+                          onClick={() => setReviewFilter("correct")}
+                          type="button"
+                        >
+                          Đúng
+                        </button>
+                        <button
+                          className={`review-pill wrong${reviewFilter === "wrong" ? " active" : ""}`}
+                          onClick={() => setReviewFilter("wrong")}
+                          type="button"
+                        >
+                          Sai
+                        </button>
                       </div>
                     </div>
 
                     <div className="review-tab">Trắc nghiệm</div>
 
                     <div className="answer-list review-question-list">
-                      {selectedQuiz.answers.length > 0 ? (
-                        selectedQuiz.answers.map((answer, index) => {
+                      {filteredAnswers.length > 0 ? (
+                        filteredAnswers.map((answer, index) => {
                           const correctIndex = answer.options.findIndex((option) => option.is_correct);
                           const selectedIndex = answer.options.findIndex((option) => option.id === answer.selected_option_id);
-                          const correctLetter = correctIndex >= 0 ? optionLetters[correctIndex] : "-";
+                          const correctLetter = correctIndex >= 0 ? optionLetter(correctIndex) : "-";
 
                           return (
                             <article className="review-question-card" key={answer.id}>
@@ -191,6 +224,9 @@ export default function StatisticsScreen() {
                                   Làm trong {formatResponseTime(answer.response_time)}
                                   {answer.time_limit ? ` / ${answer.time_limit}s` : ""}
                                 </span>
+                                {!answer.selected_option_id ? (
+                                  <span className="review-question-chip missed">Chưa trả lời</span>
+                                ) : null}
                               </div>
                               <h3>{answer.question}</h3>
 
@@ -205,7 +241,7 @@ export default function StatisticsScreen() {
                                       className={`review-option${isCorrect ? " correct" : ""}${isWrongSelected ? " wrong-selected" : ""}`}
                                       key={option.id}
                                     >
-                                      <span>{optionLetters[optionIndex]}.</span>
+                                      <span>{optionLetter(optionIndex)}.</span>
                                       <p>{option.content}</p>
                                     </div>
                                   );
@@ -217,6 +253,9 @@ export default function StatisticsScreen() {
                                   Đáp án đúng: {correctLetter}
                                 </span>
                                 <div className="review-answer-buttons">
+                                  {!answer.selected_option_id ? (
+                                    <span className="review-answer-chip missed">Chưa trả lời</span>
+                                  ) : null}
                                   {answer.options.map((option, optionIndex) => {
                                     const isCorrect = option.is_correct;
                                     const isSelected = option.id === answer.selected_option_id;
@@ -228,7 +267,7 @@ export default function StatisticsScreen() {
                                         key={option.id}
                                       >
                                         {isCorrect ? "✓ " : isWrongSelected ? "× " : ""}
-                                        {optionLetters[optionIndex]}
+                                        {optionLetter(optionIndex)}
                                       </span>
                                     );
                                   })}
@@ -238,7 +277,7 @@ export default function StatisticsScreen() {
                           );
                         })
                       ) : (
-                        <div className="statistics-empty compact">Lượt chơi này chưa có câu trả lời được lưu.</div>
+                        <div className="statistics-empty compact">Không có câu nào trong bộ lọc này.</div>
                       )}
                     </div>
                   </div>

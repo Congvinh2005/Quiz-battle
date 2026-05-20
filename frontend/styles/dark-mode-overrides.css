@@ -222,6 +222,18 @@
   color: var(--text);
 }
 
+.dark-mode .add-option-btn {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: var(--border2);
+  color: #c4b5fd;
+}
+
+.dark-mode .opt-remove-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+
 .dark-mode .time-chip {
   background: var(--surface);
 }
