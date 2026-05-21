@@ -9,10 +9,6 @@ import io
 
 router = APIRouter(prefix="/import", tags=["import"])
 
-class QuestionOption(BaseModel):
-    content: str
-    is_correct: bool = False
-
 class ImportedQuestion(BaseModel):
     text: str
     type: str = "MCQ"
