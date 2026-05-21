@@ -1,5 +1,6 @@
 from uuid import UUID
 from datetime import timezone
+from random import choice
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -8,6 +9,24 @@ from sqlalchemy.orm import Session
 from app.models.quiz.answer_options import AnswerOption
 from app.models.quiz.questions import Question
 from app.models.quiz.quizzes import Quiz
+
+QUIZ_TITLE_ICONS = [
+	"📚",
+	"🧠",
+	"🎯",
+	"🏆",
+	"⚡",
+	"🌟",
+	"🔥",
+	"🚀",
+	"🎮",
+	"💡",
+	"🧩",
+	"🔬",
+	"🌍",
+	"🎨",
+	"🎵",
+]
 
 
 def _serialize_datetime(value) -> str | None:
@@ -18,6 +37,13 @@ def _serialize_datetime(value) -> str | None:
 		value = value.replace(tzinfo=timezone.utc)
 
 	return value.isoformat()
+
+
+def _title_with_random_icon(title: str) -> str:
+	clean_title = title.strip()
+	if any(clean_title.startswith(icon) for icon in QUIZ_TITLE_ICONS):
+		return clean_title
+	return f"{choice(QUIZ_TITLE_ICONS)} {clean_title}"
 
 
 def _serialize_quiz_summary(quiz: Quiz, question_count: int, time_limit_sum: int) -> dict:
@@ -119,7 +145,7 @@ def create_quiz_with_questions(payload: dict, current_user: UUID, db: Session) -
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing title")
 
 	quiz = Quiz(
-		title=title,
+		title=_title_with_random_icon(title),
 		description=payload.get("description"),
 		is_public=payload.get("is_public", False),
 		created_by=current_user,
