@@ -592,11 +592,13 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
   const answers: AnswerOption[] = useMemo(() => {
     if (!currentQuestion?.answer_options?.length) return [];
 
-    return currentQuestion.answer_options.map((option, index) => ({
-      id: option.id,
-      letter: String.fromCharCode(65 + index),
-      text: option.content,
-    }));
+    return currentQuestion.answer_options
+      .map((option, index) => ({
+        id: option.id,
+        letter: String.fromCharCode(65 + index),
+        text: option.content?.trim() || "",
+      }))
+      .filter((option) => option.text.length > 0);
   }, [currentQuestion]);
 
   const leaderboard: LeaderboardItem[] = useMemo(() => {
@@ -866,6 +868,9 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
     }
   };
 
+  const currentTimeLimit = currentQuestion?.time_limit || 30;
+  const timeProgress = Math.max(0, Math.min(100, (timeRemaining / currentTimeLimit) * 100));
+
   return (
     <div className="game-wrap">
       <div className="game-topbar">
@@ -889,6 +894,9 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
               />
             </svg>
             <div className="timer-num">{timeRemaining}</div>
+          </div>
+          <div className="timer-bar" aria-label="Thời gian còn lại">
+            <div className="timer-bar-fill" style={{ width: `${timeProgress}%` }} />
           </div>
         </div>
 
@@ -982,10 +990,29 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
           </div>
 
           {isAnswerSubmitted && answerFeedback && (
-            <div className="question-num" style={{ marginTop: 14, textAlign: "center" }}>
-              {answerFeedback.isCorrect
-                ? `Chính xác! +${answerFeedback.pointsEarned} điểm`
-                : `Sai rồi. Đáp án đúng đã được tô xanh.`}
+            <div className={`answer-feedback ${answerFeedback.isCorrect ? "correct" : "wrong"}`}>
+              {answerFeedback.isCorrect ? (
+                <>
+                  <div className="answer-feedback-burst" aria-hidden="true">
+                    {["🌸", "🌼", "✨", "🎉", "🌟", "💐"].map((item, index) => (
+                      <span key={`${item}-${index}`}>{item}</span>
+                    ))}
+                  </div>
+                  <div className="answer-feedback-icon">🎉</div>
+                  <div>
+                    <strong>Chính xác!</strong>
+                    <p>+{answerFeedback.pointsEarned} điểm. Quá đẹp, sang câu tiếp nào.</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="answer-feedback-icon">😭</div>
+                  <div>
+                    <strong>Sai rồi</strong>
+                    <p>Đáp án đúng đã được tô xanh. Bình tĩnh, câu sau gỡ lại.</p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1012,6 +1039,36 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
               {isNextQuestionLoading ? "Đang chuyển..." : "Câu Tiếp →"}
             </button>
           </div>
+
+          <section className="game-guide" aria-label="Hướng dẫn chơi">
+            <div className="game-guide-title">Hướng dẫn chơi</div>
+            <div className="game-guide-grid">
+              <div className="game-guide-item">
+                <span>1</span>
+                <p>Chọn một đáp án trong các lựa chọn <strong>A, B, C, D</strong> hoặc <strong>Đúng/Sai</strong></p>
+              </div>
+              <div className="game-guide-item">
+                <span>2</span>
+                <p>Bấm <strong>Trả lời</strong> để chốt đáp án. Sau khi gửi sẽ không đổi được.</p>
+              </div>
+              <div className="game-guide-item">
+                <span>3</span>
+                <p>Đồng hồ vẫn chạy trong lúc bạn suy nghĩ, thời gian trả lời được ghi lại.</p>
+              </div>
+              <div className="game-guide-item">
+                <span>4</span>
+                <p>Chọn đáp án đúng, dưới <strong>3</strong> giây được trọn điểm , chậm hơn được 50% điểm, sai được 0 điểm.</p>
+              </div>
+              <div className="game-guide-item">
+                <span>5</span>
+                <p>Sau khi trả lời, bấm <strong>Câu Tiếp</strong> để chuyển sang câu sau.</p>
+              </div>
+              <div className="game-guide-item">
+                <span>6</span>
+                <p>Có thể  <strong>Chat trong game </strong> để chọc ghẹo đối thủ.</p>
+              </div>
+            </div>
+          </section>
         </main>
 
         <aside className="mini-board vertical">

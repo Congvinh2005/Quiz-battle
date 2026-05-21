@@ -362,6 +362,11 @@
   color: #b45309;
 }
 
+.review-question-chip.points {
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--primary);
+}
+
 .review-question-chip.missed {
   background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
@@ -649,6 +654,11 @@
 .dark-mode .review-question-chip.time {
   background: rgba(245, 158, 11, 0.14);
   color: #fbbf24;
+}
+
+.dark-mode .review-question-chip.points {
+  background: rgba(124, 58, 237, 0.18);
+  color: #c4b5fd;
 }
 
 .dark-mode .review-question-chip.missed {

@@ -8,6 +8,7 @@ from app.models.game.game_questions import GameQuestion
 from app.models.game.game_results import GameResult
 from app.models.game.player_answers import PlayerAnswer
 from app.models.user_stat.user_stats import UserStats
+from app.services.game_service import _calculate_points
 
 
 router = APIRouter(prefix="/statistics", tags=["statistics"])
@@ -96,6 +97,12 @@ def get_my_statistics(current_user: UUID = Depends(get_current_user), db: Sessio
                         "question": question.content,
                         "question_type": question.question_type,
                         "time_limit": question.time_limit,
+                        "question_points": question.points or 0,
+                        "points_earned": _calculate_points(
+                            bool(answer.is_correct) if answer else False,
+                            answer.response_time if answer else None,
+                            question.points,
+                        ),
                         "selected_option_id": str(answer.selected_option_id) if answer and answer.selected_option_id else None,
                         "selected_option": answer.selected_option.content if answer and answer.selected_option else None,
                         "correct_option": next(

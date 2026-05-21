@@ -60,7 +60,7 @@ const toLeaderboardRows = (leaderboard: any[]): LeaderboardRow[] => {
     .slice()
     .sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0))
     .map((item, index) => {
-      const name = item.display_name || `Người chơi ${index + 1}`;
+      const name = item.full_name || item.display_name || `Người chơi ${index + 1}`;
       const score = Number(item.final_score ?? item.score ?? 0);
       const rank = Number(item.rank ?? index + 1);
 

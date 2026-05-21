@@ -305,6 +305,9 @@ export default function StatisticsScreen() {
                                   {formatResponseTime(answer.response_time)}
                                   {answer.time_limit ? ` / ${answer.time_limit}s` : ""}
                                 </span>
+                                <span className="review-question-chip points">
+                                  {answer.points_earned ?? 0}/{answer.question_points ?? 0} điểm
+                                </span>
                                 {!answer.selected_option_id ? (
                                   <span className="review-question-chip missed">Chưa trả lời</span>
                                 ) : null}

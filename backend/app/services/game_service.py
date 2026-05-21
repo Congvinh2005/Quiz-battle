@@ -184,8 +184,19 @@ def _calculate_points(is_correct: bool, response_time: float | int | None, quest
 	if not is_correct:
 		return 0
 
-	# Correct: return full question points
-	return question_points or 0
+	points = int(question_points or 0)
+	if points <= 0:
+		return 0
+
+	try:
+		seconds = float(response_time or 0)
+	except (TypeError, ValueError):
+		seconds = 0
+
+	if seconds < 3:
+		return points
+
+	return max(int(points * 0.5), 1)
 
 
 def _build_live_score_map(room: GameRoom, db: Session) -> dict[str, int]:
@@ -862,6 +873,7 @@ def _get_leaderboard(room: GameRoom, db: Session) -> list:
 			"rank": idx + 1,
 			"user_id": str(player.user_id),
 			"display_name": player.display_name,
+			"full_name": player.user.full_name if getattr(player, "user", None) else None,
 			"avatar_url": player.user.avatar_url if getattr(player, "user", None) else None,
 			"score": score_map.get(str(player.user_id), 0),
 		}
@@ -878,6 +890,7 @@ def _get_room_results_rows(room: GameRoom, db: Session) -> list:
 				"room_id": str(room.id),
 				"user_id": item["user_id"],
 				"display_name": item["display_name"],
+				"full_name": item.get("full_name"),
 				"avatar_url": item.get("avatar_url"),
 				"final_score": item["score"],
 				"rank": item["rank"],
@@ -898,6 +911,7 @@ def _get_room_results_rows(room: GameRoom, db: Session) -> list:
 				"room_id": str(result.room_id),
 				"user_id": str(result.user_id),
 				"display_name": players_by_user_id.get(str(result.user_id)).display_name if players_by_user_id.get(str(result.user_id)) else None,
+				"full_name": players_by_user_id.get(str(result.user_id)).user.full_name if players_by_user_id.get(str(result.user_id)) and players_by_user_id.get(str(result.user_id)).user else None,
 				"avatar_url": players_by_user_id.get(str(result.user_id)).user.avatar_url if players_by_user_id.get(str(result.user_id)) and players_by_user_id.get(str(result.user_id)).user else None,
 				"final_score": result.final_score,
 				"rank": result.rank,
@@ -913,6 +927,7 @@ def _get_room_results_rows(room: GameRoom, db: Session) -> list:
 			"room_id": str(room.id),
 			"user_id": item["user_id"],
 			"display_name": item["display_name"],
+			"full_name": item.get("full_name"),
 			"avatar_url": item.get("avatar_url"),
 			"final_score": item["score"],
 			"rank": item["rank"],
@@ -1333,13 +1348,7 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 		is_correct = str(selected_option_id) == correct_option_id
 		response_time = float(payload.get("response_time", 0) or 0)
 		question_points = int(game_question.get("points") or 0)
-
-		points = 0
-		if is_correct:
-			if response_time < 3:
-				points = question_points
-			else:
-				points = max(int(question_points * 0.5), 1)
+		points = _calculate_points(is_correct, response_time, question_points)
 
 		redis_manager.store_answer(
 			room_code,
@@ -1434,15 +1443,7 @@ async def submit_answer(room_code: str, current_user: UUID, payload: dict, db: S
 	question = game_question.question
 	is_correct = selected_option.is_correct
 	response_time = float(payload.get("response_time", 0) or 0)
-
-	# Calculate score
-	points = 0
-	if is_correct:
-		# Time-based scoring: if answered in < 3 seconds, get full points, otherwise reduced
-		if response_time < 3:
-			points = question.points
-		else:
-			points = max(int(question.points * 0.5), 1)
+	points = _calculate_points(is_correct, response_time, question.points)
 
 	# Create PlayerAnswer
 	answer = PlayerAnswer(

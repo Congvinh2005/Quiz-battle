@@ -182,6 +182,8 @@ export interface StatisticsAnswer {
   question: string;
   question_type?: QuestionType | null;
   time_limit?: number | null;
+  question_points?: number | null;
+  points_earned?: number | null;
   selected_option_id?: string | null;
   selected_option?: string | null;
   correct_option?: string | null;
