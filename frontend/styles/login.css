@@ -146,6 +146,9 @@
 }
 
 .login-title {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   font-family: 'Syne', sans-serif;
   font-size: 40px;
   font-weight: 800;
@@ -153,8 +156,24 @@
   margin-bottom: 10px;
 }
 
+.login-title-icon {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
 .login-title span {
+  display: inline-block;
   color: var(--primary-light);
+}
+
+.login-title strong {
+  color: var(--text);
 }
 
 .login-sub {

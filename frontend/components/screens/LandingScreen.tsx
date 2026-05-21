@@ -194,14 +194,16 @@ const LANDING_HTML = `<!DOCTYPE html>
                             Bắt đầu ngay
                             <span class="material-symbols-outlined">rocket_launch</span>
 </a>
-<button class="border-2 border-primary text-primary px-2xl py-md rounded-xl font-bold font-headline-md text-headline-md hover:bg-primary-fixed transition-colors">
-                            Xem demo
-                        </button>
+<a class="border-2 border-primary text-primary px-2xl py-md rounded-xl font-bold font-headline-md text-headline-md hover:bg-primary-fixed transition-colors" href="https://www.youtube.com/watch?v=rT5ef78adrk" target="_blank" rel="noreferrer">
+              Xem demo
+            </a>
 </div>
 </div>
 <div class="relative">
 <div class="absolute -z-10 w-full h-full bg-primary-container/20 blur-3xl rounded-full scale-110"></div>
-<img alt="Quiz Battle Gameplay" class="rounded-2xl shadow-2xl border-4 border-white" data-alt="A vibrant and energetic 3D digital illustration of multiple mobile phone screens showing a colorful quiz interface. The screens feature purple and cyan buttons, progress bars, and cheerful avatars. The background is a clean, bright minimalist studio with soft, professional lighting and purple accent glows, reflecting a modern gamified educational aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJx8I5nH22M3BirK3KZwd88XeraCZ_w30wValeLCWBD3d-4nn69MGNWniKaymRI5fn-e5n4MubR0dR9V8-xIbEt_JXu36wtcrVSBpisI_u7dp1ZAq2uqwRmlmSMgAr1MIglX4134-ZUAgF8js2tTwRuvyAmviMffZaFbYLkCHjnczVoGWLwHtMfeEHlFauRFnXd8gBThEvg9TSWhou9q8_3kYyza5Nb6foWLeAhCSwsgXaLzuTwaSPHR9oy0HpulfMNZibIhknLF4"/>
+<div class="mx-auto max-w-[520px] rounded-3xl border-4 border-primary/20 bg-primary-fixed p-8 shadow-2xl">
+<img alt="Quiz Battle logo" class="h-auto w-full object-contain" src="/favicon.png"/>
+</div>
 </div>
 </div>
 </section>

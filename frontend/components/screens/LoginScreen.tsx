@@ -56,7 +56,10 @@ export default function LoginScreen() {
       </Link>
       <div className="login-left">
         <div className="brand-badge"><span className="dot" /> Quiz đấu thời gian thực</div>
-        <h1 className="login-title">Chào mừng trở lại <span>QuizBattle</span></h1>
+        <h1 className="login-title">
+          <img className="login-title-icon" src="/favicon.png" alt="QuizBattle" />
+          <span>Chào mừng trở lại <strong>QuizBattle</strong></span>
+        </h1>
         <p className="login-sub">Nền tảng đấu quiz thời gian thực. Tạo phòng, mời bạn bè và thi đấu ngay!</p>
 
         {(error || successMessage) && (
