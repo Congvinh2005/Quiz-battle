@@ -10,20 +10,39 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
 
+  const getLoginErrorMessage = (err: any) => {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail || err?.response?.data?.message;
+
+    if (status === 401 || detail === "Invalid username or password") {
+      return "Tên tài khoản hoặc mật khẩu không đúng.";
+    }
+
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    return "Đăng nhập thất bại. Vui lòng thử lại.";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setIsLoading(true);
 
     try {
       await login(username, password);
+      setSuccessMessage("Đăng nhập thành công, vào chơi thôi!");
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.message || "Đăng nhập thất bại");
+      setError(getLoginErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -40,17 +59,9 @@ export default function LoginScreen() {
         <h1 className="login-title">Chào mừng trở lại <span>QuizBattle</span></h1>
         <p className="login-sub">Nền tảng đấu quiz thời gian thực. Tạo phòng, mời bạn bè và thi đấu ngay!</p>
 
-        {error && (
-          <div style={{
-            marginBottom: "16px",
-            padding: "10px 12px",
-            background: "rgba(239,68,68,.15)",
-            border: "1px solid rgba(239,68,68,.4)",
-            borderRadius: "10px",
-            color: "#EF4444",
-            fontSize: "13px",
-          }}>
-            {error}
+        {(error || successMessage) && (
+          <div className={`login-alert ${error ? "error" : "success"}`} role="alert" aria-live="polite">
+            {error || successMessage}
           </div>
         )}
 

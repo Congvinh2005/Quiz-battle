@@ -17,6 +17,7 @@ export default function RegisterScreen() {
   const [strengthColor, setStrengthColor] = useState("var(--border2)");
   const [strengthWidth, setStrengthWidth] = useState("0%");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { register } = useAuth();
@@ -141,6 +142,7 @@ export default function RegisterScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     const validationError = validateForm();
     if (validationError) {
@@ -152,7 +154,10 @@ export default function RegisterScreen() {
 
     try {
       await register(username.trim(), email.trim(), password, fullName.trim());
-      router.push("/login");
+      setSuccessMessage("Đăng ký thành công! Đang chuyển bạn về trang đăng nhập...");
+      window.setTimeout(() => {
+        router.push("/login");
+      }, 1200);
     } catch (err: any) {
       setError(getRegisterErrorMessage(err));
     } finally {
@@ -179,16 +184,14 @@ export default function RegisterScreen() {
           <p className="register-sub">Tham gia hàng nghìn người chơi đang đấu quiz mỗi ngày</p>
         </div>
 
+        {successMessage && (
+          <div className="register-alert success" role="status">
+            {successMessage}
+          </div>
+        )}
+
         {error && (
-          <div style={{
-            marginBottom: "16px",
-            padding: "10px 12px",
-            background: "rgba(239,68,68,.15)",
-            border: "1px solid rgba(239,68,68,.4)",
-            borderRadius: "10px",
-            color: "#EF4444",
-            fontSize: "13px",
-          }}>
+          <div className="register-alert error" role="alert">
             {error}
           </div>
         )}
