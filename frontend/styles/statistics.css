@@ -321,6 +321,26 @@
   padding: 20px 22px 28px;
 }
 
+.review-question-list.scrollable {
+  max-height: 760px;
+  overflow-y: auto;
+  padding-right: 14px;
+  scroll-behavior: smooth;
+}
+
+.review-question-list.scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.review-question-list.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.review-question-list.scrollable::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.28);
+  border-radius: 999px;
+}
+
 .review-question-card {
   padding: 20px 22px;
   border: 1px solid #dde3ea;

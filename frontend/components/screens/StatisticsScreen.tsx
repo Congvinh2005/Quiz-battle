@@ -118,6 +118,7 @@ export default function StatisticsScreen() {
       await statisticsService.deletePlayedQuiz(selectedQuiz.result_id);
       await loadStatistics(null);
       setReviewFilter("all");
+      window.alert(`Đã xoá lịch sử quiz "${selectedQuiz.quiz_title}" thành công.`);
     } catch (err) {
       console.error("Failed to delete played quiz:", err);
       setError("Không xóa được quiz khỏi lịch sử. Vui lòng thử lại.");
@@ -288,7 +289,7 @@ export default function StatisticsScreen() {
 
                     <div className="review-tab">Trắc nghiệm</div>
 
-                    <div className="answer-list review-question-list">
+                    <div className={`answer-list review-question-list${filteredAnswers.length > 5 ? " scrollable" : ""}`}>
                       {filteredAnswers.length > 0 ? (
                         filteredAnswers.map((answer, index) => {
                           const correctIndex = answer.options.findIndex((option) => option.is_correct);
