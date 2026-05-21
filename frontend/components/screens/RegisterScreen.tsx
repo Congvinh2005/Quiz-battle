@@ -21,6 +21,91 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuth();
 
+  const validateForm = () => {
+    const normalizedFullName = fullName.trim();
+    const normalizedUsername = username.trim();
+    const normalizedEmail = email.trim();
+
+    if (!normalizedFullName) {
+      return "Vui lòng nhập họ và tên.";
+    }
+
+    if (normalizedFullName.length < 2) {
+      return "Họ và tên phải có ít nhất 2 ký tự.";
+    }
+
+    if (!normalizedUsername) {
+      return "Vui lòng nhập tên tài khoản.";
+    }
+
+    if (normalizedUsername.length < 3) {
+      return "Tên tài khoản phải có ít nhất 3 ký tự.";
+    }
+
+    if (normalizedUsername.length > 50) {
+      return "Tên tài khoản không được vượt quá 50 ký tự.";
+    }
+
+    if (!/^[A-Za-z0-9_]+$/.test(normalizedUsername)) {
+      return "Tên tài khoản chỉ được chứa chữ cái, số và dấu gạch dưới.";
+    }
+
+    if (!normalizedEmail) {
+      return "Vui lòng nhập email.";
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return "Email không đúng định dạng.";
+    }
+
+    if (password.length < 8) {
+      return "Mật khẩu phải có ít nhất 8 ký tự.";
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      return "Mật khẩu phải có ít nhất 1 chữ hoa.";
+    }
+
+    if (!/[0-9]/.test(password)) {
+      return "Mật khẩu phải có ít nhất 1 chữ số.";
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return "Mật khẩu phải có ít nhất 1 ký tự đặc biệt.";
+    }
+
+    if (password !== confirmPassword) {
+      return "Mật khẩu xác nhận không khớp.";
+    }
+
+    return "";
+  };
+
+  const getRegisterErrorMessage = (err: any) => {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const firstError = detail[0];
+      const field = firstError?.loc?.[firstError.loc.length - 1];
+
+      if (field === "email") return "Email không đúng định dạng.";
+      if (field === "username") return "Tên tài khoản phải từ 3 đến 50 ký tự.";
+      if (field === "password") return "Mật khẩu chưa đạt yêu cầu.";
+      if (field === "full_name") return "Họ và tên không được vượt quá 255 ký tự.";
+    }
+
+    if (status === 409) {
+      return "Tên tài khoản hoặc email đã được sử dụng.";
+    }
+
+    return "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.";
+  };
+
   const evaluatePassword = (value: string) => {
     let score = 0;
     if (value.length >= 8) score++;
@@ -57,18 +142,19 @@ export default function RegisterScreen() {
     e.preventDefault();
     setError("");
 
-    if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp");
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await register(username, email, password, fullName);
+      await register(username.trim(), email.trim(), password, fullName.trim());
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Đăng ký thất bại");
+      setError(getRegisterErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

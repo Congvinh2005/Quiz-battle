@@ -172,6 +172,8 @@ def _player_payload_from_cache(player_payload: dict) -> dict:
 		"room_id": player_payload.get("room_id"),
 		"user_id": player_payload.get("user_id"),
 		"display_name": player_payload.get("display_name"),
+		"full_name": player_payload.get("full_name"),
+		"avatar_url": player_payload.get("avatar_url"),
 		"score": int(player_payload.get("score") or 0),
 		"current_question_order": int(player_payload.get("current_question_order") or 0),
 		"status": player_payload.get("status") or "ACTIVE",
@@ -842,6 +844,7 @@ def _get_leaderboard(room: GameRoom, db: Session) -> list:
 				mock = MockPlayer()
 				mock.user_id = user_id
 				mock.display_name = user.username
+				mock.user = user
 				reconstructed_players.append(mock)
 		players = reconstructed_players
 	
@@ -859,6 +862,7 @@ def _get_leaderboard(room: GameRoom, db: Session) -> list:
 			"rank": idx + 1,
 			"user_id": str(player.user_id),
 			"display_name": player.display_name,
+			"avatar_url": player.user.avatar_url if getattr(player, "user", None) else None,
 			"score": score_map.get(str(player.user_id), 0),
 		}
 		for idx, player in enumerate(sorted_players)

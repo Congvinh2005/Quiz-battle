@@ -8,9 +8,16 @@ from app.core.exceptions import UserAlreadyExists, InvalidCredentials
 from app.services.redis_manager import save_refresh_token, validate_refresh_token, revoke_user_refresh_tokens
 
 def register_user(db: Session, username: str, email: str, password: str, full_name: str | None = None) -> User:
-    user_exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
-    if user_exists:
-        raise UserAlreadyExists("Username or email already registered")
+    username = username.strip()
+    email = email.strip()
+
+    username_exists = db.query(User).filter(User.username == username).first()
+    if username_exists:
+        raise UserAlreadyExists("Tên tài khoản đã được sử dụng")
+
+    email_exists = db.query(User).filter(User.email == email).first()
+    if email_exists:
+        raise UserAlreadyExists("Email đã được đăng ký")
     
     hashed_password = hash_password(password)
     user = User(

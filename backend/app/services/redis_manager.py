@@ -371,6 +371,7 @@ class RedisManager:
                 "rank": index + 1,
                 "user_id": str(player.get("user_id")),
                 "display_name": player.get("display_name"),
+                "avatar_url": player.get("avatar_url"),
                 "score": scores.get(str(player.get("user_id")), 0),
             }
             for index, player in enumerate(sorted_players)

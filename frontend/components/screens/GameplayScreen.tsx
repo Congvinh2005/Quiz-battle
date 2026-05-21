@@ -35,6 +35,7 @@ interface LeaderboardItem {
   name: string;
   score: string;
   gradient: string;
+  avatarUrl?: string | null;
   isMe?: boolean;
   userId?: string;
 }
@@ -49,6 +50,7 @@ interface SubmitAnswerResponse {
     rank: number;
     user_id: string;
     display_name: string;
+    avatar_url?: string | null;
     score: number;
   }>;
 }
@@ -97,6 +99,7 @@ function serializeLeaderboard(state: RoomStateResponse | null): LeaderboardItem[
     name: item.display_name,
     score: item.score.toLocaleString("vi-VN"),
     gradient: gradients[index % gradients.length],
+    avatarUrl: item.avatar_url,
     isMe: false,
     userId: item.user_id,
   }));
@@ -1028,7 +1031,11 @@ export default function GameplayScreen({ roomCode }: GameplayScreenProps) {
                   fontSize: 10,
                 }}
               >
-                {item.initials}
+                {item.avatarUrl ? (
+                  <img className="mini-av-img" src={item.avatarUrl} alt="" />
+                ) : (
+                  item.initials
+                )}
               </div>
               <span className="mini-name">{item.name}</span>
               <span className="mini-score">{item.score}</span>

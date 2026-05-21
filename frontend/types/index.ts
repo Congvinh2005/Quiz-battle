@@ -105,6 +105,7 @@ export interface GameStateSnapshot {
     rank: number;
     user_id: string;
     display_name: string;
+    avatar_url?: string | null;
     score: number;
   }>;
 }
@@ -231,6 +232,7 @@ export interface WSGameState {
     rank: number;
     user_id: string;
     display_name: string;
+    avatar_url?: string | null;
     score: number;
   }>;
 }

@@ -112,6 +112,14 @@
   margin-left: 0;
 }
 
+.mini-av-img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
+}
+
 .mini-more {
   width: 28px;
   height: 28px;
@@ -475,18 +483,54 @@
 
 .dark-mode .game-question-counter,
 .dark-mode .question-num,
-.dark-mode .mini-rank,
 .dark-mode .mini-board-title {
   color: var(--muted);
 }
 
 .dark-mode .game-question-counter strong,
 .dark-mode .question-text,
-.dark-mode .mini-name,
-.dark-mode .mini-board-item,
 .dark-mode .game-score,
 .dark-mode .game-rank {
   color: var(--text);
+}
+
+.dark-mode .mini-board.vertical .mini-board-item,
+.dark-mode .mini-board-item {
+  background: rgba(24, 22, 38, 0.96);
+  border-color: rgba(167, 139, 250, 0.34);
+  color: var(--text);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+}
+
+.dark-mode .mini-board.vertical .mini-board-item.me,
+.dark-mode .mini-board-item.me {
+  background: rgba(124, 58, 237, 0.24);
+  border-color: rgba(168, 85, 247, 0.9);
+  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.2);
+}
+
+.dark-mode .mini-board-item .mini-name {
+  color: #f8fafc;
+}
+
+.dark-mode .mini-board-item .mini-score {
+  color: #d8b4fe;
+}
+
+.dark-mode .mini-board-item .mini-rank {
+  color: #c4b5fd;
+}
+
+.dark-mode .mini-board-item .mini-rank.gold {
+  color: #fbbf24;
+}
+
+.dark-mode .mini-board-item .mini-rank.silver {
+  color: #cbd5e1;
+}
+
+.dark-mode .mini-board-item .mini-rank.bronze {
+  color: #f59e0b;
 }
 
 .dark-mode .timer-track {

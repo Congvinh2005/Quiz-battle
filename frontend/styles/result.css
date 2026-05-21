@@ -7,13 +7,15 @@
 
 .result-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 860px);
+  justify-content: center;
   gap: 24px;
   align-items: start;
 }
 
 .result-main {
   min-width: 0;
+  width: 100%;
 }
 
 .result-hero {
