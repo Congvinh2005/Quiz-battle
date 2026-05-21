@@ -1,6 +1,8 @@
 from typing import Dict, Set
 from fastapi import WebSocket
 
+from app.services.redis_pubsub import publish_ws_event
+
 
 class ConnectionManager:
 	def __init__(self) -> None:
@@ -42,7 +44,7 @@ class ConnectionManager:
 			return False
 		return bool(room_users.get(user_id))
 
-	async def broadcast(self, room_code: str, message: dict) -> None:
+	async def broadcast_local(self, room_code: str, message: dict) -> None:
 		connections = self.active_connections.get(room_code, set())
 		stale: Set[WebSocket] = set()
 
@@ -72,3 +74,6 @@ class ConnectionManager:
 		if room_users == {}:
 			self.room_user_connections.pop(room_code, None)
 
+	async def broadcast(self, room_code: str, message: dict) -> None:
+		await self.broadcast_local(room_code, message)
+		await publish_ws_event(room_code, message)

@@ -6,11 +6,14 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.api.v1.api import api_router
-from app.websockets.game_socket import router as websocket_router
+from app.websockets.game_socket import manager, router as websocket_router
+from app.services.redis_pubsub import close_pubsub, listen_ws_events
+import asyncio
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+redis_pubsub_task: asyncio.Task | None = None
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -63,6 +66,24 @@ def startup():
         print("✅ Alembic migrations completed!")
     except Exception as e:
         print(f"⚠️ Alembic migration failed: {e}")
+
+
+@app.on_event("startup")
+async def startup_redis_pubsub():
+    global redis_pubsub_task
+    redis_pubsub_task = asyncio.create_task(listen_ws_events(manager))
+    print("✅ Redis Pub/Sub listener started!")
+
+
+@app.on_event("shutdown")
+async def shutdown_redis_pubsub():
+    if redis_pubsub_task:
+        redis_pubsub_task.cancel()
+        try:
+            await redis_pubsub_task
+        except asyncio.CancelledError:
+            pass
+    await close_pubsub()
 
 # Include routers
 app.include_router(api_router)
