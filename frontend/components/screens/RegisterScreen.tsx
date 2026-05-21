@@ -152,7 +152,7 @@ export default function RegisterScreen() {
 
     try {
       await register(username.trim(), email.trim(), password, fullName.trim());
-      router.push("/dashboard");
+      router.push("/login");
     } catch (err: any) {
       setError(getRegisterErrorMessage(err));
     } finally {

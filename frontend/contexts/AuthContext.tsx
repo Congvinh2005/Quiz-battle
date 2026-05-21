@@ -58,23 +58,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // # nhả token để về trang dashboard, tránh việc tự động đăng nhập sau khi đăng ký
+  
+  // const register = async (username: string, email: string, password: string, fullName?: string) => {
+  //   try {
+  //     setIsLoading(true);
+  //     const tokens: AuthTokens = await authService.register({
+  //       username,
+  //       full_name: fullName?.trim() || null,
+  //       email,
+  //       password,
+  //     });
+
+  //     // Store tokens
+  //     localStorage.setItem("access_token", tokens.access_token);
+  //     localStorage.setItem("refresh_token", tokens.refresh_token);
+
+  //     // Get user data
+  //     const currentUser = await authService.getCurrentUser();
+  //     setUser(currentUser);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+
+// # đăng ký xong thì về trang login, tránh việc tự vào dashboard sau khi đăng ký
   const register = async (username: string, email: string, password: string, fullName?: string) => {
     try {
       setIsLoading(true);
-      const tokens: AuthTokens = await authService.register({
+      await authService.register({
         username,
         full_name: fullName?.trim() || null,
         email,
         password,
       });
-
-      // Store tokens
-      localStorage.setItem("access_token", tokens.access_token);
-      localStorage.setItem("refresh_token", tokens.refresh_token);
-
-      // Get user data
-      const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
     } finally {
       setIsLoading(false);
     }
