@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -11,6 +11,33 @@ from app.models.user_stat.user_stats import UserStats
 
 
 router = APIRouter(prefix="/statistics", tags=["statistics"])
+
+
+def _sync_user_stats(current_user: UUID, db: Session) -> dict:
+    results = db.query(GameResult).filter(GameResult.user_id == current_user).all()
+    total_games = len(results)
+    total_score = sum(result.final_score or 0 for result in results)
+    wins = sum(1 for result in results if result.rank == 1)
+    avg_score = total_score / total_games if total_games else 0
+
+    stats = db.query(UserStats).filter(UserStats.user_id == current_user).first()
+    if not stats:
+        stats = UserStats(user_id=current_user)
+        db.add(stats)
+
+    stats.total_games = total_games
+    stats.total_score = total_score
+    stats.avg_score = avg_score
+    stats.wins = wins
+    db.commit()
+
+    return {
+        "total_games": total_games,
+        "total_score": total_score,
+        "avg_score": avg_score,
+        "wins": wins,
+        "played_quiz_count": total_games,
+    }
 
 
 @router.get("/me", response_model=dict)
@@ -105,4 +132,24 @@ def get_my_statistics(current_user: UUID = Depends(get_current_user), db: Sessio
             "played_quiz_count": len(results),
         },
         "played_quizzes": played_quizzes,
+    }
+
+
+@router.delete("/me/results/{result_id}", response_model=dict)
+def delete_my_result(result_id: UUID, current_user: UUID = Depends(get_current_user), db: Session = Depends(get_db)):
+    result = (
+        db.query(GameResult)
+        .filter(GameResult.id == result_id, GameResult.user_id == current_user)
+        .first()
+    )
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lịch sử quiz này")
+
+    db.delete(result)
+    db.commit()
+    summary = _sync_user_stats(current_user, db)
+
+    return {
+        "message": "Đã xóa quiz khỏi lịch sử",
+        "summary": summary,
     }

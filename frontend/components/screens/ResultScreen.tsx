@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameService } from "@/services/gameService";
 import { RoomStateResponse } from "@/types";
@@ -80,6 +80,7 @@ const toLeaderboardRows = (leaderboard: any[]): LeaderboardRow[] => {
 
 export default function ResultScreen({ roomCode }: ResultScreenProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [results, setResults] = useState<LeaderboardRow[]>([]);
   const [roomState, setRoomState] = useState<RoomStateResponse | null>(null);
@@ -196,6 +197,7 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
   }, [roomCode]);
 
   const room = roomState?.room;
+  const cameFromStatistics = searchParams.get("from") === "statistics";
   const rows = useMemo<LeaderboardRow[]>(() => {
     const hostId = roomState?.room?.host_id;
 
@@ -346,6 +348,11 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
             <button className="btn-home" onClick={() => router.push("/dashboard")} disabled={isReplaying}>
               🏠 Về trang chủ
             </button>
+            {cameFromStatistics && (
+              <button className="btn-home btn-statistics-back" onClick={() => router.push("/statistics")} disabled={isReplaying}>
+                📊 Quay lại thống kê
+              </button>
+            )}
           </div>
         </main>
       </div>

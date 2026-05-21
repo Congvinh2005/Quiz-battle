@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { statisticsService } from "@/services/statisticsService";
 import { PlayedQuizStat, StatisticsResponse } from "@/types";
 
@@ -38,33 +39,42 @@ function formatResponseTime(value?: number | null) {
 }
 
 export default function StatisticsScreen() {
+  const router = useRouter();
   const [data, setData] = useState<StatisticsResponse | null>(null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [playedSearch, setPlayedSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadStatistics = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const nextData = await statisticsService.getMyStatistics();
-        setData(nextData);
-        setSelectedResultId(nextData.played_quizzes[0]?.result_id ?? null);
-      } catch (err) {
-        console.error("Failed to load statistics:", err);
-        setError("Không tải được thống kê. Vui lòng thử lại.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadStatistics = async (preferredResultId?: string | null) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const nextData = await statisticsService.getMyStatistics();
+      setData(nextData);
 
+      const hasPreferred = preferredResultId
+        ? nextData.played_quizzes.some((item) => item.result_id === preferredResultId)
+        : false;
+      const nextSelectedResultId = hasPreferred && preferredResultId
+        ? preferredResultId
+        : nextData.played_quizzes[0]?.result_id ?? null;
+      setSelectedResultId(nextSelectedResultId);
+    } catch (err) {
+      console.error("Failed to load statistics:", err);
+      setError("Không tải được thống kê. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadStatistics();
   }, []);
 
-  const playedQuizzes = data?.played_quizzes ?? [];
+  const playedQuizzes = useMemo(() => data?.played_quizzes ?? [], [data?.played_quizzes]);
   const filteredPlayedQuizzes = useMemo(() => {
     const query = playedSearch.trim().toLowerCase();
     if (!query) return playedQuizzes;
@@ -86,6 +96,35 @@ export default function StatisticsScreen() {
     if (reviewFilter === "wrong") return answers.filter((answer) => !answer.is_correct);
     return answers;
   }, [selectedQuiz, reviewFilter]);
+
+  const handleViewRanking = () => {
+    if (!selectedQuiz?.room_code) {
+      setError("Không tìm thấy phòng kết quả của quiz này.");
+      return;
+    }
+
+    router.push(`/results/${selectedQuiz.room_code}?from=statistics`);
+  };
+
+  const handleDeletePlayedQuiz = async () => {
+    if (!selectedQuiz || isDeleting) return;
+
+    const confirmed = window.confirm(`Xóa "${selectedQuiz.quiz_title}" khỏi lịch sử của bạn?`);
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      setError(null);
+      await statisticsService.deletePlayedQuiz(selectedQuiz.result_id);
+      await loadStatistics(null);
+      setReviewFilter("all");
+    } catch (err) {
+      console.error("Failed to delete played quiz:", err);
+      setError("Không xóa được quiz khỏi lịch sử. Vui lòng thử lại.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -197,6 +236,24 @@ export default function StatisticsScreen() {
                         <span>Độ chính xác:</span>
                         <strong>{accuracyOf(selectedQuiz)}%</strong>
                       </p>
+                      <div className="review-info-actions">
+                        <button
+                          className="review-action-btn ranking"
+                          onClick={handleViewRanking}
+                          type="button"
+                          disabled={!selectedQuiz.room_code}
+                        >
+                          🏆 Xem xếp hạng
+                        </button>
+                        <button
+                          className="review-action-btn delete"
+                          onClick={handleDeletePlayedQuiz}
+                          type="button"
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? "Đang xóa..." : "🗑 Xóa lịch sử"}
+                        </button>
+                      </div>
                     </div>
                   </aside>
 
@@ -204,7 +261,7 @@ export default function StatisticsScreen() {
                     <div className="review-topbar">
                       <div className="review-topbar-icon">◧</div>
                       <h2>Bộ quiz: &quot;{selectedQuiz.quiz_title}&quot;</h2>
-                    <div className="review-topbar-actions">
+                      <div className="review-topbar-actions">
                         <button
                           className={`review-pill all${reviewFilter === "all" ? " active" : ""}`}
                           onClick={() => setReviewFilter("all")}

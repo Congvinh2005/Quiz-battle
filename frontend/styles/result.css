@@ -562,6 +562,11 @@
   cursor: pointer;
 }
 
+.btn-statistics-back {
+  border-color: rgba(124, 58, 237, 0.36);
+  color: var(--primary-light);
+}
+
 @media (max-width: 640px) {
   .result-wrap {
     padding: 24px 18px;

@@ -6,4 +6,8 @@ export const statisticsService = {
     const response = await apiClient.get<StatisticsResponse>("/statistics/me");
     return response.data;
   },
+
+  deletePlayedQuiz: async (resultId: string): Promise<void> => {
+    await apiClient.delete(`/statistics/me/results/${resultId}`);
+  },
 };
