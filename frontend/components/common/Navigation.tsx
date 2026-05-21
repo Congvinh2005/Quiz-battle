@@ -51,7 +51,7 @@ export default function Navigation() {
   const isStatisticsPage = pathname === "/statistics";
   const editQuizId = isEditQuizPage ? pathname.split("/")[2] : null;
 
-  const navItems = [
+  const primaryNavItems = [
     { href: "/dashboard", label: "🏠 Dashboard", active: pathname === "/dashboard" },
     {
       href: "/editor",
@@ -62,15 +62,21 @@ export default function Navigation() {
       ? [{ href: `/editor/${editQuizId}`, label: "✏️ Sửa Quiz", active: true }]
       : []),
     { href: "/create-room", label: "🎮 Tạo phòng", active: pathname === "/create-room" },
+  ];
+
+  const resultsNavItems = activeRoomCode && isResultsPage
+    ? [{ href: `/results/${activeRoomCode}`, label: "🏆 Kết quả", active: true }]
+    : [];
+
+  const navItems = [
+    ...primaryNavItems,
+    ...resultsNavItems,
     { href: "/statistics", label: "📊 Thống kê", active: isStatisticsPage },
     ...(activeRoomCode && isRoomPage
       ? [{ href: `/room/${activeRoomCode}`, label: "👥 Lobby", active: true }]
       : []),
     ...(activeRoomCode && isGamePage
       ? [{ href: `/game/${activeRoomCode}`, label: "⚡ Gameplay", active: true }]
-      : []),
-    ...(activeRoomCode && isResultsPage
-      ? [{ href: `/results/${activeRoomCode}`, label: "🏆 Kết quả", active: true }]
       : []),
   ];
 

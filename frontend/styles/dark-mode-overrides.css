@@ -782,6 +782,12 @@
   color: var(--primary-light);
 }
 
+.dark-mode .podium-host {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
 .dark-mode .podium-bar.gold {
   background: linear-gradient(to top, rgba(245, 158, 11, 0.28), rgba(245, 158, 11, 0.08));
   border-color: rgba(245, 158, 11, 0.38);

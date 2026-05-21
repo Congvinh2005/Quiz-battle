@@ -19,7 +19,9 @@ interface LeaderboardRow {
   name: string;
   score: number;
   gradient: string;
+  avatarUrl?: string | null;
   isMe?: boolean;
+  isHost?: boolean;
   rankClass?: string;
 }
 
@@ -47,6 +49,12 @@ const getInitials = (name: string) => {
 
 const formatScore = (score: number) => score.toLocaleString("vi-VN");
 
+const getPodiumClass = (rank: number) => {
+  if (rank === 1) return "gold";
+  if (rank === 2) return "silver";
+  return "bronze";
+};
+
 const toLeaderboardRows = (leaderboard: any[]): LeaderboardRow[] => {
   return leaderboard
     .slice()
@@ -64,6 +72,7 @@ const toLeaderboardRows = (leaderboard: any[]): LeaderboardRow[] => {
         name,
         score,
         gradient: podiumGradients[index % podiumGradients.length],
+        avatarUrl: item.avatar_url ?? null,
         rankClass: rank === 1 ? "gold-text" : rank === 2 ? "silver-text" : rank === 3 ? "bronze-text" : undefined,
       };
     });
@@ -186,20 +195,26 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
     };
   }, [roomCode]);
 
+  const room = roomState?.room;
   const rows = useMemo<LeaderboardRow[]>(() => {
+    const hostId = roomState?.room?.host_id;
+
     return results.map((result) => ({
       ...result,
       score: result.score,
       isMe: result.userId === user?.id,
+      isHost: result.userId === hostId,
     }));
-  }, [results, user?.id]);
+  }, [results, roomState?.room?.host_id, user?.id]);
 
   const topThree = rows.slice(0, 3);
+  const podiumRows = [2, 1, 3]
+    .map((rank) => topThree.find((row) => row.rank === rank))
+    .filter((row): row is LeaderboardRow => Boolean(row));
   const miniBoardRows = rows.slice(0, 8);
-  const room = roomState?.room;
-  const title = room?.status === "FINISHED" ? "Game kết thúc!" : "Bảng xếp hạng realtime";
+  const quizTitle = roomState?.quiz?.title || "Kết quả Quiz";
   const subtitle = room
-    ? `${room.player_count ?? roomState?.player_count ?? rows.length} người chơi • ${roomState?.game_state.total_questions ?? 0} câu hỏi • Phòng ${roomCode}`
+    ? `Phòng ${roomCode} • ${roomState?.game_state.total_questions ?? 0} câu hỏi • ${room.player_count ?? roomState?.player_count ?? rows.length} người chơi`
     : `Phòng ${roomCode}`;
 
   const handlePlayAgain = async () => {
@@ -251,7 +266,10 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
             </div>
             <div className="result-trophy">🏆</div>
             <h1 className="result-title">
-              {title} <span>{room?.status === "FINISHED" ? "Xuất sắc!" : "Đang cập nhật theo WebSocket"}</span>
+              Bảng xếp hạng
+              <span>
+                <span className="result-quiz-label">Bộ quiz:</span> &quot;{quizTitle}&quot;
+              </span>
             </h1>
             <p className="result-sub">{subtitle}</p>
             {error && <p className="result-sub">{error}</p>}
@@ -259,29 +277,43 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
           </section>
 
           <section className="podium">
-            {topThree.map((row, index) => (
-              <div className="podium-item" key={`${row.rank}-${row.name}`}>
-                <div
-                  className={`podium-av ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}
-                  style={{ background: podiumGradients[index] }}
+            {podiumRows.map((row) => {
+              const podiumClass = getPodiumClass(row.rank);
+
+              return (
+                <div className={`podium-item rank-${row.rank}`} key={`${row.rank}-${row.name}`}>
+                  <div
+                    className={`podium-av ${podiumClass}`}
+                  style={{ background: podiumGradients[row.rank - 1] }}
                 >
-                  {row.initials}
+                    {row.avatarUrl ? (
+                      <img className="result-av-img" src={row.avatarUrl} alt="" />
+                    ) : (
+                      row.initials
+                    )}
+                  </div>
+                  <div className={`podium-name${row.isMe ? " podium-name-small" : ""}`}>
+                    {row.name}
+                    {row.isMe && (
+                      <>
+                        <br />
+                        <span className="podium-me">(Bạn)</span>
+                      </>
+                    )}
+                    {row.isHost && (
+                      <>
+                        <br />
+                        <span className="podium-host">HOST</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="podium-score">{formatScore(row.score)}</div>
+                  <div className={`podium-bar ${podiumClass}`}>
+                    <div className={`podium-pos ${podiumClass}`}>{row.rank}</div>
+                  </div>
                 </div>
-                <div className={`podium-name${index === 1 && row.isMe ? " podium-name-small" : ""}`}>
-                  {row.name}
-                  {row.isMe && (
-                    <>
-                      <br />
-                      <span className="podium-me">(Bạn)</span>
-                    </>
-                  )}
-                </div>
-                <div className="podium-score">{formatScore(row.score)}</div>
-                <div className={`podium-bar ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>
-                  <div className={`podium-pos ${index === 0 ? "gold" : index === 1 ? "silver" : "bronze"}`}>{row.rank}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </section>
           <div className="full-leaderboard">
             <div className="lb-header">
@@ -294,12 +326,16 @@ export default function ResultScreen({ roomCode }: ResultScreenProps) {
                   {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
                 </div>
                 <div className="lb-av" style={{ background: row.gradient }}>
-                  {row.initials}
+                  {row.avatarUrl ? (
+                    <img className="result-av-img" src={row.avatarUrl} alt="" />
+                  ) : (
+                    row.initials
+                  )}
                 </div>
                 <div className="lb-name">
                   {row.name} {row.isMe && <span className="lb-you">(Bạn)</span>}
                 </div>
-                <div className="lb-score-val">{formatScore(row.score)}</div>
+                <div className="lb-score-val">{formatScore(row.score)} điểm</div>
               </div>
             ))}
           </div>
