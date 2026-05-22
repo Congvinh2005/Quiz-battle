@@ -374,6 +374,24 @@
   color: var(--muted);
 }
 
+.dark-mode .quiz-pagination {
+  background: rgba(18, 18, 26, 0.72);
+  border-color: var(--border2);
+}
+
+.dark-mode .quiz-page-btn,
+.dark-mode .quiz-page-number {
+  background: var(--surface2);
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+.dark-mode .quiz-page-number.active {
+  background: var(--primary);
+  border-color: var(--primary-light);
+  color: #ffffff;
+}
+
 .dark-mode .sidebar-card {
   background: rgba(124, 58, 237, 0.12);
   border-color: rgba(124, 58, 237, 0.28);

@@ -165,11 +165,11 @@ export default function StatisticsScreen() {
           </div>
           <div className="stat-tile">
             <span>{Math.round(summary?.avg_score ?? 0)}</span>
-            <small>Điểm TB</small>
+            <small>Điểm trung bình</small>
           </div>
           <div className="stat-tile">
             <span>{summary?.wins ?? 0}</span>
-            <small>Top 1</small>
+            <small>Số lầnTop 1</small>
           </div>
         </div>
       </section>
