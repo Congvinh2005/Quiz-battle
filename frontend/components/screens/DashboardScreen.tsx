@@ -28,6 +28,7 @@ const recentActivities = [
 ];
 
 const SEARCH_DEBOUNCE_MS = 250;
+const PROFILE_REMINDER_DISMISSED_KEY = "profile_reminder_dismissed";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -91,6 +92,7 @@ export default function DashboardScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [greeting, setGreeting] = useState("Chào buổi sáng");
+  const [showProfileReminder, setShowProfileReminder] = useState(false);
 
   // Fix hydration error: update greeting after client hydration
   useEffect(() => {
@@ -132,6 +134,17 @@ export default function DashboardScreen() {
 
     return () => clearTimeout(timeout);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!user) {
+      setShowProfileReminder(false);
+      return;
+    }
+
+    const hasAvatar = Boolean(user.avatar_url?.trim());
+    const wasDismissed = sessionStorage.getItem(`${PROFILE_REMINDER_DISMISSED_KEY}_${user.id}`) === "true";
+    setShowProfileReminder(!hasAvatar && !wasDismissed);
+  }, [user]);
 
   const myQuizzes = useMemo(
     () => quizzes.filter((quiz) => quiz.created_by === user?.id),
@@ -185,6 +198,17 @@ export default function DashboardScreen() {
     setSearchQuery("");
     setAppliedSearchQuery("");
     void loadQuizzes();
+  };
+
+  const handleOpenProfile = () => {
+    window.dispatchEvent(new Event("open-account-modal"));
+  };
+
+  const handleDismissProfileReminder = () => {
+    if (user?.id) {
+      sessionStorage.setItem(`${PROFILE_REMINDER_DISMISSED_KEY}_${user.id}`, "true");
+    }
+    setShowProfileReminder(false);
   };
 
   return (
@@ -243,6 +267,26 @@ export default function DashboardScreen() {
           ))}
         </div>
       </section>
+
+      {showProfileReminder && (
+        <section className="profile-reminder" role="status" aria-live="polite">
+          <div className="profile-reminder-icon">
+            {(user?.full_name || user?.username || "?").slice(0, 1).toUpperCase()}
+          </div>
+          <div className="profile-reminder-copy">
+            <strong>Hoàn thiện hồ sơ của bạn</strong>
+            <span>Thêm avatar để bạn bè dễ nhận ra bạn trong lobby, chat và bảng xếp hạng.</span>
+          </div>
+          <div className="profile-reminder-actions">
+            <button type="button" className="profile-reminder-primary" onClick={handleOpenProfile}>
+              Cập nhật ngay
+            </button>
+            <button type="button" className="profile-reminder-secondary" onClick={handleDismissProfileReminder}>
+              Để sau
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="home-body">
         <main>

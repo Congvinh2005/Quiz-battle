@@ -19,6 +19,16 @@ export default function Navigation() {
     setIsProfileMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    const openAccountModal = () => {
+      setIsProfileMenuOpen(false);
+      setIsAccountOpen(true);
+    };
+
+    window.addEventListener("open-account-modal", openAccountModal);
+    return () => window.removeEventListener("open-account-modal", openAccountModal);
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     setIsProfileMenuOpen(false);
