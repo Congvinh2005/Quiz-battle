@@ -72,13 +72,14 @@ function getInitials(name: string) {
 
 export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatLine[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [joinDisplayName, setJoinDisplayName] = useState(user?.full_name || user?.username || "");
   const [error, setError] = useState<string | null>(null);
+  const [lobbyNotice, setLobbyNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -86,8 +87,10 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [roomClosedMessage, setRoomClosedMessage] = useState<string | null>(null);
   const [isRealtimeReady, setIsRealtimeReady] = useState(false);
+  const [isInviteLinkCopied, setIsInviteLinkCopied] = useState(false);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const copyInviteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasRedirectedRef = useRef(false);
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const pendingOptimisticMessageIdRef = useRef<string | null>(null);
@@ -188,14 +191,32 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
+      if (copyInviteTimeoutRef.current) {
+        clearTimeout(copyInviteTimeoutRef.current);
+      }
     };
   }, []);
 
   useEffect(() => {
+    if (isAuthLoading) return;
+
+    if (!isAuthenticated) {
+      const redirectPath = typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}`
+        : `/room/${roomCode}`;
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("postLoginRedirect", redirectPath);
+      }
+      router.replace(`/login?next=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
     const loadRoom = async () => {
       try {
         setIsLoading(true);
         setError(null);
+        setLobbyNotice(null);
         const [roomData, playersData, chatHistory] = await Promise.all([
           gameService.getRoomByCode(roomCode),
           gameService.getRoomPlayers(roomCode),
@@ -231,7 +252,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
           return;
         }
 
-        setError("Không tải được dữ liệu phòng. Đang hiển thị dữ liệu mẫu để xem giao diện.");
+        setLobbyNotice("Không tải được dữ liệu phòng. Đang hiển thị dữ liệu mẫu để xem giao diện.");
       } finally {
         setIsLoading(false);
       }
@@ -240,7 +261,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     if (roomCode) {
       loadRoom();
     }
-  }, [roomCode, isRoomNotFoundError, notifyRoomClosedAndRedirect, router]);
+  }, [roomCode, isAuthLoading, isAuthenticated, isRoomNotFoundError, notifyRoomClosedAndRedirect, router]);
 
   // Re-map chat messages when hostUserId is available to ensure host highlight is correct
   useEffect(() => {
@@ -270,7 +291,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
   // Polling fallback: Check room status every 500ms to catch game start
   useEffect(() => {
-    if (!roomCode || hasRedirectedRef.current) return;
+    if (!roomCode || isAuthLoading || !isAuthenticated || hasRedirectedRef.current) return;
 
     const startPolling = () => {
       if (pollIntervalRef.current) {
@@ -313,10 +334,10 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [roomCode, router, user?.id, notifyRoomClosedAndRedirect]);
+  }, [roomCode, isAuthLoading, isAuthenticated, router, user?.id, notifyRoomClosedAndRedirect]);
 
   useEffect(() => {
-    if (!roomCode || roomClosedMessage) return;
+    if (!roomCode || isAuthLoading || !isAuthenticated || roomClosedMessage) return;
 
     let cancelled = false;
 
@@ -459,10 +480,10 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
       wsService.disconnect();
       setIsRealtimeReady(true);
     };
-  }, [roomCode, roomClosedMessage, notifyRoomClosedAndRedirect, router, ensureFreshAccessToken]);
+  }, [roomCode, isAuthLoading, isAuthenticated, roomClosedMessage, notifyRoomClosedAndRedirect, router, ensureFreshAccessToken]);
 
   useEffect(() => {
-    if (!roomCode) return;
+    if (!roomCode || isAuthLoading || !isAuthenticated) return;
 
     const syncTimer = setInterval(async () => {
       try {
@@ -478,7 +499,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     return () => {
       clearInterval(syncTimer);
     };
-  }, [roomCode, mergeChatMessages, toChatLine]);
+  }, [roomCode, isAuthLoading, isAuthenticated, mergeChatMessages, toChatLine]);
 
   const displayPlayers = useMemo<DisplayPlayer[]>(() => {
     if (players.length === 0) return demoPlayers;
@@ -504,6 +525,43 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const emptySlots = Math.max(0, Math.min(2, maxPlayers - displayPlayers.length));
   const isPlaying = room?.status === "PLAYING";
   const isCurrentUserHost = !!(user?.id && room?.host_id && user.id === room.host_id);
+
+  const copyTextFallback = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.setAttribute("readonly", "");
+    textArea.style.position = "fixed";
+    textArea.style.top = "-9999px";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (typeof window === "undefined" || !displayRoomCode) return;
+
+    const inviteLink = `${window.location.origin}/room/${encodeURIComponent(displayRoomCode)}`;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteLink);
+      } else {
+        copyTextFallback(inviteLink);
+      }
+
+      setIsInviteLinkCopied(true);
+      if (copyInviteTimeoutRef.current) {
+        clearTimeout(copyInviteTimeoutRef.current);
+      }
+      copyInviteTimeoutRef.current = setTimeout(() => {
+        setIsInviteLinkCopied(false);
+      }, 1800);
+    } catch (err) {
+      setError("Không copy được link phòng. Vui lòng thử lại hoặc copy URL trên trình duyệt.");
+    }
+  };
 
   const handleSendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -693,6 +751,16 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
             <div className="lobby-code-block">
               <div className="lobby-code-label">Mã phòng</div>
               <div className="lobby-code">{displayRoomCode}</div>
+              <button
+                className={`lobby-copy-link-btn${isInviteLinkCopied ? " copied" : ""}`}
+                type="button"
+                onClick={handleCopyInviteLink}
+                aria-label="Copy link phòng"
+                title="Copy link phòng"
+              >
+                <span aria-hidden="true">{isInviteLinkCopied ? "✓" : "🔗"}</span>
+                {isInviteLinkCopied ? "Đã copy" : "Copy link"}
+              </button>
             </div>
           </div>
           {!isRealtimeReady && !roomClosedMessage && (
@@ -712,6 +780,8 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
           </div>
         </div>
       </div>
+
+      {lobbyNotice && <div className="lobby-notice">{lobbyNotice}</div>}
 
       {!currentUserInRoom && (
         <form className="join-form-card" onSubmit={handleJoinRoom}>

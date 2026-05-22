@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,21 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+
+  const redirectAfterLogin = useMemo(() => {
+    if (typeof window === "undefined") return "/dashboard";
+
+    const params = new URLSearchParams(window.location.search);
+    const nextParam = params.get("next");
+    const savedRedirect = sessionStorage.getItem("postLoginRedirect");
+    const target = nextParam || savedRedirect || "/dashboard";
+
+    if (!target.startsWith("/") || target.startsWith("//")) {
+      return "/dashboard";
+    }
+
+    return target;
+  }, []);
 
   const getLoginErrorMessage = (err: any) => {
     const status = err?.response?.status;
@@ -40,7 +55,10 @@ export default function LoginScreen() {
       await login(username, password);
       setSuccessMessage("Đăng nhập thành công, vào chơi thôi!");
       await new Promise((resolve) => setTimeout(resolve, 1200));
-      router.push("/dashboard");
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("postLoginRedirect");
+      }
+      router.push(redirectAfterLogin);
     } catch (err: any) {
       setError(getLoginErrorMessage(err));
     } finally {

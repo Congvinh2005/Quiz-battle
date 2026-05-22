@@ -472,6 +472,29 @@
   color: #ffffff;
 }
 
+.dark-mode .lobby-copy-link-btn {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.dark-mode .lobby-copy-link-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.dark-mode .lobby-copy-link-btn.copied {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.36);
+  color: #d1fae5;
+}
+
+.dark-mode .lobby-notice {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+
 .dark-mode .players-area {
   background: var(--surface);
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.24);
