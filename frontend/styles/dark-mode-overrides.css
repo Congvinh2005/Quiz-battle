@@ -586,19 +586,22 @@
   color: #ffffff;
 }
 
-.dark-mode .join-input {
-  background: rgba(255, 255, 255, 0.08);
+.dark-mode .join-form-hint {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.dark-mode .join-name-pill {
+  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
-.dark-mode .join-input::placeholder {
-  color: rgba(255, 255, 255, 0.55);
+.dark-mode .join-name-pill span {
+  color: rgba(255, 255, 255, 0.68);
 }
 
-.dark-mode .join-input:focus {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.26);
+.dark-mode .join-name-pill strong {
+  color: #ffffff;
 }
 
 .dark-mode .join-btn {

@@ -95,6 +95,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const pendingOptimisticMessageIdRef = useRef<string | null>(null);
   const lastAlertedErrorRef = useRef<string | null>(null);
+  const preferredJoinDisplayName = user?.full_name || user?.username || "";
 
   const isRoomNotFoundError = useCallback((err: any) => err?.response?.status === 404, []);
   const getErrorMessage = useCallback((err: any, fallback: string) => {
@@ -158,6 +159,11 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
     if (!chatMessagesRef.current) return;
     chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
   }, [chatMessages.length]);
+
+  useEffect(() => {
+    if (!preferredJoinDisplayName || joinDisplayName.trim()) return;
+    setJoinDisplayName(preferredJoinDisplayName);
+  }, [preferredJoinDisplayName, joinDisplayName]);
 
   useEffect(() => {
     if (!error) {
@@ -785,18 +791,17 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
       {!currentUserInRoom && (
         <form className="join-form-card" onSubmit={handleJoinRoom}>
-          <div className="join-form-title">📍 Nhập tên để vào phòng</div>
+          <div className="join-form-copy">
+            <div className="join-form-title">📍 Bạn chưa ở trong phòng</div>
+            <div className="join-form-hint">Bấm vào phòng để tham gia sảnh chờ.</div>
+          </div>
           <div className="join-form-row">
-            <input
-              className="join-input"
-              type="text"
-              placeholder="Tên của bạn..."
-              value={joinDisplayName}
-              onChange={(e) => setJoinDisplayName(e.target.value)}
-              disabled={isJoining}
-            />
+            <div className="join-name-pill">
+              <span>Vào bằng tên:</span>
+              <strong>{joinDisplayName || user?.full_name || user?.username || "Tài khoản của bạn"}</strong>
+            </div>
             <button className="join-btn" type="submit" disabled={isJoining}>
-              {isJoining ? "Đang vào..." : "Tham gia"}
+              {isJoining ? "Đang vào..." : "Vào phòng"}
             </button>
           </div>
         </form>
