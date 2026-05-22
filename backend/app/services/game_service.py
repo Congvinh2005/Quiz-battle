@@ -629,7 +629,7 @@ async def join_room(room_code: str, payload: dict, current_user: UUID, db: Sessi
 	if not existing:
 		player_count = db.query(RoomPlayer).filter(RoomPlayer.room_id == room.id).count()
 		if player_count >= room.max_players:
-			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Room is full")
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Phòng đã đủ người rồi. Bạn thử xin host tăng số lượng người chơi hoặc tham gia phòng khác nhé!")
 
 	display_name = payload.get("display_name")
 	if not display_name:

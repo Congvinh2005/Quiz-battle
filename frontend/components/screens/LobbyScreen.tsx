@@ -99,7 +99,13 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
 
   const isRoomNotFoundError = useCallback((err: any) => err?.response?.status === 404, []);
   const getErrorMessage = useCallback((err: any, fallback: string) => {
-    return err?.response?.data?.detail || err?.message || fallback;
+    const detail = err?.response?.data?.detail || err?.message;
+
+    if (detail === "Room is full") {
+      return "Phòng đã đủ người rồi. Bạn thử xin host tăng số lượng người chơi hoặc tham gia phòng khác nhé!";
+    }
+
+    return detail || fallback;
   }, []);
   const hostUserId = room?.host_id || null;
   const isChatEnabled = room?.settings?.chat_enabled === true;
@@ -674,8 +680,7 @@ export default function LobbyScreen({ roomCode }: LobbyScreenProps) {
         return;
       }
 
-      // Get error message from backend
-      const errorMessage = err?.response?.data?.detail || "Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.";
+      const errorMessage = getErrorMessage(err, "Không thể vào phòng. Kiểm tra mã phòng hoặc backend rồi thử lại.");
       setError(errorMessage);
     } finally {
       setIsJoining(false);
