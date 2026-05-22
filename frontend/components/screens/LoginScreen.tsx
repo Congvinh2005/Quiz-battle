@@ -29,6 +29,9 @@ export default function LoginScreen() {
 
     return target;
   }, []);
+  const loginReasonMessage = redirectAfterLogin.startsWith("/room/")
+    ? "Bạn cần đăng nhập để vào phòng được mời. Đăng nhập xong hệ thống sẽ đưa bạn quay lại phòng."
+    : "";
 
   const getLoginErrorMessage = (err: any) => {
     const status = err?.response?.status;
@@ -79,6 +82,12 @@ export default function LoginScreen() {
           <span>Chào mừng trở lại <strong>QuizBattle</strong></span>
         </h1>
         <p className="login-sub">Nền tảng đấu quiz thời gian thực. Tạo phòng, mời bạn bè và thi đấu ngay!</p>
+
+        {loginReasonMessage && !error && !successMessage && (
+          <div className="login-alert info" role="status" aria-live="polite">
+            {loginReasonMessage}
+          </div>
+        )}
 
         {(error || successMessage) && (
           <div className={`login-alert ${error ? "error" : "success"}`} role="alert" aria-live="polite">
