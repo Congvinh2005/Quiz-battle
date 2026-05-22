@@ -86,6 +86,79 @@ const setupModeLabels: Record<SetupMode, string> = {
   import: "Đã chọn: Import câu hỏi",
 };
 
+function ImportFormatGuide() {
+  return (
+    <section className="import-format-guide" aria-label="Hướng dẫn định dạng file import">
+      <div className="import-guide-head">
+        <div>
+          <div className="import-guide-kicker">Định dạng file import</div>
+          <h2>Chuẩn bị file theo mẫu này để hệ thống đọc đúng câu hỏi</h2>
+        </div>
+        <span className="import-guide-badge">Tô màu đáp án đúng</span>
+      </div>
+
+      <div className="import-guide-grid">
+        <div className="import-guide-panel">
+          <div className="import-guide-title">Excel / CSV</div>
+          <p>Dòng đầu là tiêu đề cột. Mỗi dòng bên dưới là 1 câu hỏi. Với Excel, tô màu xanh ô đáp án đúng.</p>
+          <div className="import-table-wrap" aria-label="Mẫu định dạng Excel">
+            <table className="import-sample-table">
+              <thead>
+                <tr>
+                  <th>Nội dung câu hỏi</th>
+                  <th>Phương án A</th>
+                  <th>Phương án B</th>
+                  <th>Phương án C</th>
+                  <th>Phương án D</th>
+                  <th>Thời gian trả lời</th>
+                  <th>Điểm số</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>The man ______ next to me is my uncle.</td>
+                  <td className="sample-correct">sitting</td>
+                  <td>sat</td>
+                  <td>to sit</td>
+                  <td>was sitting</td>
+                  <td>20</td>
+                  <td>1000</td>
+                </tr>
+                <tr>
+                  <td>This is the best movie ______ this year.</td>
+                  <td>to see</td>
+                  <td>seeing</td>
+                  <td className="sample-correct">seen</td>
+                  <td>saw</td>
+                  <td>20</td>
+                  <td>1000</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="import-guide-panel">
+          <div className="import-guide-title">Word / Google Docs</div>
+          <p>Mỗi câu gồm 1 dòng câu hỏi và 4 dòng đáp án ngay bên dưới. Tô màu vàng dòng đáp án đúng, rồi lưu/tải xuống dạng .docx.</p>
+          <div className="import-doc-sample" aria-label="Mẫu định dạng Word hoặc Google Docs">
+            <strong>Kết quả của lệnh print(type(1/2)) trong Python 3 là gì?</strong>
+            <span>{"<class 'int'>"}</span>
+            <span className="sample-highlight">{"<class 'float'>"}</span>
+            <span>{"<class 'double'>"}</span>
+            <span>{"<class 'number'>"}</span>
+            <strong>Hàm nào được dùng để lấy độ dài của một danh sách?</strong>
+            <span>size()</span>
+            <span>length()</span>
+            <span>count()</span>
+            <span className="sample-highlight">len()</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const router = useRouter();
   const quizTitleInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +174,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const [importFileName, setImportFileName] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportGuideOpen, setIsImportGuideOpen] = useState(false);
 
   useEffect(() => {
     if (!quizId) return;
@@ -206,6 +280,7 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
   const openSetupPanel = () => {
     setSelectedSetupMode(null);
     setImportFileName("");
+    setIsImportGuideOpen(false);
     setShowSetup(true);
   };
 
@@ -215,6 +290,9 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
   const startWithMode = (mode: SetupMode) => {
     setSelectedSetupMode(mode);
+    if (mode !== "import") {
+      setIsImportGuideOpen(false);
+    }
 
     if (mode === "sample") {
       setQuestions(initialQuestions);
@@ -233,6 +311,12 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
     if (mode === "import" && importFile) {
       handleImportFile();
     }
+  };
+
+  const toggleImportGuide = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setSelectedSetupMode("import");
+    setIsImportGuideOpen((current) => !current);
   };
 
   const continueFromInitialSetup = async () => {
@@ -532,10 +616,10 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                 <div className="setup-option-desc">Chọn file Excel, CSV hoặc Word để đưa câu hỏi vào editor.</div>
 
                 <label className="import-file-picker" onClick={(event) => event.stopPropagation()}>
-                  Chọn file (.xlsx, .xls, .csv, .doc, .docx)
+                  Chọn file (.xlsx, .xls, .csv, .docx)
                   <input
                     type="file"
-                    accept=".xlsx,.xls,.csv,.doc,.docx"
+                    accept=".xlsx,.xls,.csv,.docx"
                     onChange={(event) => {
                       setSelectedSetupMode("import");
                       handleImportFileChange(event);
@@ -546,8 +630,14 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                 <div className="import-file-name">
                   {importFileName ? `Đã chọn file: ${importFileName}` : "Chưa chọn file"}
                 </div>
+
+                <button className="import-guide-toggle" type="button" onClick={toggleImportGuide}>
+                  {isImportGuideOpen ? "Ẩn hướng dẫn" : "Chú ý: xem định dạng file"}
+                </button>
               </div>
             </div>
+
+            {selectedSetupMode === "import" && isImportGuideOpen ? <ImportFormatGuide /> : null}
 
             {selectedSetupMode ? (
               <div className="setup-selected-note">{setupModeLabels[selectedSetupMode]}</div>
@@ -595,19 +685,25 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
                 <div className="setup-option-desc">Không có câu mẫu nào, tạo câu hỏi từ đầu.</div>
               </button>
 
-              <div className={`setup-option-card import-card${selectedSetupMode === "import" ? " active" : ""}`}>
+              <div
+                className={`setup-option-card import-card${selectedSetupMode === "import" ? " active" : ""}`}
+                onClick={() => setSelectedSetupMode("import")}
+              >
                 <div className="setup-option-icon">📥</div>
                 <div className="setup-option-title">Import từ file</div>
                 <div className="setup-option-desc">
                   Hỗ trợ giao diện nhập từ Excel hoặc Word. Bước parser sẽ làm tiếp sau.
                 </div>
 
-                <label className="import-file-picker">
-                  Chọn file (.xlsx, .xls, .csv, .doc, .docx)
+                <label className="import-file-picker" onClick={(event) => event.stopPropagation()}>
+                  Chọn file (.xlsx, .xls, .csv, .docx)
                   <input
                     type="file"
-                    accept=".xlsx,.xls,.csv,.doc,.docx"
-                    onChange={handleImportFileChange}
+                    accept=".xlsx,.xls,.csv,.docx"
+                    onChange={(event) => {
+                      setSelectedSetupMode("import");
+                      handleImportFileChange(event);
+                    }}
                   />
                 </label>
 
@@ -621,14 +717,23 @@ export default function QuizEditorScreen({ quizId }: QuizEditorScreenProps) {
 
                 <button 
                   className="import-continue-btn" 
-                  onClick={handleImportFile}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleImportFile();
+                  }}
                   disabled={!importFile || isImporting}
                   type="button"
                 >
                   {isImporting ? "Đang xử lý..." : "Tiếp tục với file"}
                 </button>
+
+                <button className="import-guide-toggle" type="button" onClick={toggleImportGuide}>
+                  {isImportGuideOpen ? "Ẩn hướng dẫn" : "Chú ý: xem định dạng file"}
+                </button>
               </div>
             </div>
+
+            {selectedSetupMode === "import" && isImportGuideOpen ? <ImportFormatGuide /> : null}
 
             <div className="setup-actions">
               <button className="setup-back-btn" onClick={closeSetupPanel} type="button">

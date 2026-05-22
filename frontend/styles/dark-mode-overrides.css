@@ -160,6 +160,45 @@
   border-color: var(--border2);
 }
 
+.dark-mode .import-format-guide {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(6, 182, 212, 0.08));
+  border-color: rgba(124, 58, 237, 0.28);
+}
+
+.dark-mode .import-guide-head h2,
+.dark-mode .import-guide-title {
+  color: var(--text);
+}
+
+.dark-mode .import-guide-panel {
+  background: var(--surface2);
+  border-color: var(--border2);
+}
+
+.dark-mode .import-guide-panel p {
+  color: var(--muted);
+}
+
+.dark-mode .import-guide-badge {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.dark-mode .import-doc-sample {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.dark-mode .import-guide-toggle {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.34);
+  color: #fbbf24;
+}
+
+.dark-mode .import-guide-toggle:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.55);
+}
+
 .dark-mode .setup-back-btn {
   background: transparent;
   color: var(--text);
