@@ -4,7 +4,8 @@ import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "rea
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { quizService } from "@/services/quizService";
-import { Quiz } from "@/types";
+import { statisticsService } from "@/services/statisticsService";
+import { Quiz, StatisticsResponse } from "@/types";
 import GuidedTour, { GuidedTourStep } from "@/components/common/GuidedTour";
 
 const recentActivities = [
@@ -29,6 +30,7 @@ const recentActivities = [
 ];
 
 const SEARCH_DEBOUNCE_MS = 250;
+const MY_QUIZZES_PER_PAGE = 6;
 const PROFILE_REMINDER_DISMISSED_KEY = "profile_reminder_dismissed";
 const DASHBOARD_TOUR_DONE_KEY = "dashboard_play_tour_done";
 const ONBOARDING_STATE_KEY = "quizbattle_onboarding_state";
@@ -109,6 +111,22 @@ function normalizeSearchText(value: string) {
     .trim();
 }
 
+function getVisiblePageItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 3) {
+    return [1, 2, 3, 4, "end-ellipsis", totalPages] as const;
+  }
+
+  if (currentPage >= totalPages - 2) {
+    return [1, "start-ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages] as const;
+  }
+
+  return [1, "start-ellipsis", currentPage - 1, currentPage, currentPage + 1, "end-ellipsis", totalPages] as const;
+}
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -122,6 +140,9 @@ export default function DashboardScreen() {
   const [showProfileReminder, setShowProfileReminder] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [isDashboardTourDone, setIsDashboardTourDone] = useState(false);
+  const [statisticsSummary, setStatisticsSummary] = useState<StatisticsResponse["summary"] | null>(null);
+  const [myQuizPage, setMyQuizPage] = useState(1);
+  const [publicQuizPage, setPublicQuizPage] = useState(1);
 
   // Fix hydration error: update greeting after client hydration
   useEffect(() => {
@@ -141,6 +162,16 @@ export default function DashboardScreen() {
     }
   }, []);
 
+  const loadStatistics = useCallback(async () => {
+    try {
+      const data = await statisticsService.getMyStatistics();
+      setStatisticsSummary(data.summary);
+    } catch (err) {
+      console.error("Không tải được thống kê dashboard:", err);
+      setStatisticsSummary(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAuthLoading) {
       return;
@@ -154,7 +185,8 @@ export default function DashboardScreen() {
     }
 
     void loadQuizzes();
-  }, [isAuthLoading, user, router, loadQuizzes]);
+    void loadStatistics();
+  }, [isAuthLoading, user, router, loadQuizzes, loadStatistics]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -194,11 +226,12 @@ export default function DashboardScreen() {
 
   const stats = useMemo(
     () => [
-      { value: Math.max(myQuizzes.length * 3, myQuizzes.length), label: "Game đã chơi", color: "purple" },
-      { value: myQuizzes.length ? "7,840" : "0", label: "Điểm TB", color: "cyan" },
+      { value: statisticsSummary?.total_games ?? 0, label: "Game đã chơi", color: "purple" },
+      { value: Math.round(statisticsSummary?.avg_score ?? 0).toLocaleString("vi-VN"), label: "Điểm trung bình", color: "cyan" },
+      { value: myQuizzes.filter((quiz) => !quiz.is_public).length, label: "Quiz private", color: "purple" },
       { value: myQuizzes.filter((quiz) => quiz.is_public).length, label: "Quiz public", color: "gold" },
     ],
-    [myQuizzes]
+    [myQuizzes, statisticsSummary]
   );
 
   const publicQuizzes = useMemo(
@@ -213,6 +246,23 @@ export default function DashboardScreen() {
     return myQuizzes.filter((quiz) => normalizeSearchText(quiz.title).includes(normalizedQuery));
   }, [myQuizzes, appliedSearchQuery]);
 
+  const myQuizTotalPages = Math.max(1, Math.ceil(filteredMyQuizzes.length / MY_QUIZZES_PER_PAGE));
+  const myQuizPageItems = getVisiblePageItems(myQuizPage, myQuizTotalPages);
+  const paginatedMyQuizzes = useMemo(() => {
+    const startIndex = (myQuizPage - 1) * MY_QUIZZES_PER_PAGE;
+    return filteredMyQuizzes.slice(startIndex, startIndex + MY_QUIZZES_PER_PAGE);
+  }, [filteredMyQuizzes, myQuizPage]);
+
+  useEffect(() => {
+    setMyQuizPage(1);
+  }, [appliedSearchQuery, myQuizzes.length]);
+
+  useEffect(() => {
+    if (myQuizPage > myQuizTotalPages) {
+      setMyQuizPage(myQuizTotalPages);
+    }
+  }, [myQuizPage, myQuizTotalPages]);
+
   const filteredPublicQuizzes = useMemo(() => {
     if (!appliedSearchQuery) return publicQuizzes;
 
@@ -220,7 +270,24 @@ export default function DashboardScreen() {
     return publicQuizzes.filter((quiz) => normalizeSearchText(quiz.title).includes(normalizedQuery));
   }, [publicQuizzes, appliedSearchQuery]);
 
-  const pendingQuizCount = myQuizzes.length || 3;
+  const publicQuizTotalPages = Math.max(1, Math.ceil(filteredPublicQuizzes.length / MY_QUIZZES_PER_PAGE));
+  const publicQuizPageItems = getVisiblePageItems(publicQuizPage, publicQuizTotalPages);
+  const paginatedPublicQuizzes = useMemo(() => {
+    const startIndex = (publicQuizPage - 1) * MY_QUIZZES_PER_PAGE;
+    return filteredPublicQuizzes.slice(startIndex, startIndex + MY_QUIZZES_PER_PAGE);
+  }, [filteredPublicQuizzes, publicQuizPage]);
+
+  useEffect(() => {
+    setPublicQuizPage(1);
+  }, [appliedSearchQuery, publicQuizzes.length]);
+
+  useEffect(() => {
+    if (publicQuizPage > publicQuizTotalPages) {
+      setPublicQuizPage(publicQuizTotalPages);
+    }
+  }, [publicQuizPage, publicQuizTotalPages]);
+
+  const pendingQuizCount = myQuizzes.length;
   const displayName = user?.full_name || user?.username || "Minh Khoa";
 
   const handleJoinRoom = (event: FormEvent<HTMLFormElement>) => {
@@ -239,6 +306,7 @@ export default function DashboardScreen() {
     setSearchQuery("");
     setAppliedSearchQuery("");
     void loadQuizzes();
+    void loadStatistics();
   };
 
   const handleOpenProfile = () => {
@@ -366,7 +434,7 @@ export default function DashboardScreen() {
 
           {error && <div className="section-error">{error}</div>}
 
-          <div className={`quiz-grid${filteredMyQuizzes.length > 6 ? " quiz-grid-scroll" : ""}`}>
+          <div className="quiz-grid">
             {isLoading ? (
               <div className="quiz-card">
                 <div className="quiz-card-title">Đang tải danh sách quiz...</div>
@@ -375,7 +443,7 @@ export default function DashboardScreen() {
                 </div>
               </div>
             ) : filteredMyQuizzes.length > 0 ? (
-              filteredMyQuizzes.map((quiz) => (
+              paginatedMyQuizzes.map((quiz) => (
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
@@ -445,13 +513,62 @@ export default function DashboardScreen() {
 
           </div>
 
+          {!isLoading && filteredMyQuizzes.length > MY_QUIZZES_PER_PAGE && (
+            <div className="quiz-pagination" aria-label="Phân trang Quiz của tôi">
+              <div className="quiz-page-summary">
+                Hiển thị {(myQuizPage - 1) * MY_QUIZZES_PER_PAGE + 1}-
+                {Math.min(myQuizPage * MY_QUIZZES_PER_PAGE, filteredMyQuizzes.length)} / {filteredMyQuizzes.length}
+              </div>
+              <div className="quiz-page-controls">
+                <button
+                  className="quiz-page-btn"
+                  type="button"
+                  onClick={() => setMyQuizPage((page) => Math.max(1, page - 1))}
+                  disabled={myQuizPage === 1}
+                >
+                  Trước
+                </button>
+                {myQuizPageItems.map((item) => {
+                  if (typeof item === "string") {
+                    return (
+                      <span className="quiz-page-ellipsis" key={item}>
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const page = item;
+                  return (
+                    <button
+                      className={`quiz-page-number${page === myQuizPage ? " active" : ""}`}
+                      type="button"
+                      key={page}
+                      onClick={() => setMyQuizPage(page)}
+                      aria-current={page === myQuizPage ? "page" : undefined}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                <button
+                  className="quiz-page-btn"
+                  type="button"
+                  onClick={() => setMyQuizPage((page) => Math.min(myQuizTotalPages, page + 1))}
+                  disabled={myQuizPage === myQuizTotalPages}
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="section-header" style={{ marginTop: 28 }}>
             <span className="section-title">📖 Thư viện công khai</span>
             <button className="section-action">Xem tất cả →</button>
           </div>
-          <div className={`quiz-grid${filteredPublicQuizzes.length > 6 ? " quiz-grid-scroll" : ""}`}>
+          <div className="quiz-grid">
             {filteredPublicQuizzes.length > 0 ? (
-              filteredPublicQuizzes.map((quiz) => (
+              paginatedPublicQuizzes.map((quiz) => (
                 <article className="quiz-card" key={quiz.id}>
                   <div className="quiz-card-title">{quiz.title}</div>
                   <div className="quiz-card-meta">
@@ -490,6 +607,55 @@ export default function DashboardScreen() {
               </article>
             )}
           </div>
+
+          {filteredPublicQuizzes.length > MY_QUIZZES_PER_PAGE && (
+            <div className="quiz-pagination" aria-label="Phân trang Thư viện công khai">
+              <div className="quiz-page-summary">
+                Hiển thị {(publicQuizPage - 1) * MY_QUIZZES_PER_PAGE + 1}-
+                {Math.min(publicQuizPage * MY_QUIZZES_PER_PAGE, filteredPublicQuizzes.length)} / {filteredPublicQuizzes.length}
+              </div>
+              <div className="quiz-page-controls">
+                <button
+                  className="quiz-page-btn"
+                  type="button"
+                  onClick={() => setPublicQuizPage((page) => Math.max(1, page - 1))}
+                  disabled={publicQuizPage === 1}
+                >
+                  Trước
+                </button>
+                {publicQuizPageItems.map((item) => {
+                  if (typeof item === "string") {
+                    return (
+                      <span className="quiz-page-ellipsis" key={item}>
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const page = item;
+                  return (
+                    <button
+                      className={`quiz-page-number${page === publicQuizPage ? " active" : ""}`}
+                      type="button"
+                      key={page}
+                      onClick={() => setPublicQuizPage(page)}
+                      aria-current={page === publicQuizPage ? "page" : undefined}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                <button
+                  className="quiz-page-btn"
+                  type="button"
+                  onClick={() => setPublicQuizPage((page) => Math.min(publicQuizTotalPages, page + 1))}
+                  disabled={publicQuizPage === publicQuizTotalPages}
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
         </main>
 
         <aside className="sidebar">
