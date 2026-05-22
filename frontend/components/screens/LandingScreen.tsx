@@ -144,6 +144,72 @@ const LANDING_HTML = `<!DOCTYPE html>
               font-weight: 800;
               line-height: 1.15;
             }
+            .landing-tour-scrim {
+              position: fixed;
+              inset: 0;
+              z-index: 9998;
+              background: rgba(8, 10, 20, 0.58);
+            }
+            .landing-tour-spot {
+              position: fixed;
+              z-index: 9999;
+              border: 2px solid #06B6D4;
+              border-radius: 18px;
+              box-shadow: 0 0 0 6px rgba(6, 182, 212, 0.2);
+              pointer-events: none;
+              transition: all 0.2s ease;
+            }
+            .landing-tour-card {
+              position: fixed;
+              z-index: 10000;
+              width: min(360px, calc(100vw - 28px));
+              background: #ffffff;
+              color: #121c2a;
+              border: 1px solid rgba(124, 58, 237, 0.22);
+              border-radius: 16px;
+              padding: 18px;
+              box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+            }
+            .landing-tour-card strong {
+              display: block;
+              color: #630ed4;
+              font-family: Lexend, sans-serif;
+              font-size: 12px;
+              margin-bottom: 8px;
+            }
+            .landing-tour-card h2 {
+              font-family: Lexend, sans-serif;
+              font-size: 19px;
+              line-height: 1.25;
+              margin-bottom: 8px;
+            }
+            .landing-tour-card p {
+              color: #4a4455;
+              font-size: 14px;
+              line-height: 1.5;
+            }
+            .landing-tour-actions {
+              display: flex;
+              justify-content: flex-end;
+              gap: 8px;
+              margin-top: 18px;
+            }
+            .landing-tour-actions button {
+              border-radius: 999px;
+              padding: 9px 14px;
+              font-weight: 700;
+              cursor: pointer;
+            }
+            .landing-tour-skip {
+              border: 1px solid #ccc3d8;
+              background: transparent;
+              color: #4a4455;
+            }
+            .landing-tour-next {
+              border: 1px solid #630ed4;
+              background: #630ed4;
+              color: #ffffff;
+            }
     </style>
 <style>
     body {
@@ -168,7 +234,7 @@ const LANDING_HTML = `<!DOCTYPE html>
 <a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#ranking">Xếp hạng</a>
 <a class="text-on-surface-variant font-label-lg hover:text-primary transition-colors duration-200" href="#community">Cộng đồng</a>
 </nav>
-<a class="bg-primary-container text-on-primary-container px-6 py-2 rounded-full font-label-lg font-bold active:scale-95 transition-transform" href="/login" target="_top" rel="noreferrer">
+<a class="bg-primary-container text-on-primary-container px-6 py-2 rounded-full font-label-lg font-bold active:scale-95 transition-transform" href="/login" target="_top" rel="noreferrer" data-tour="landing-login">
                 Chơi ngay
             </a>
 </div>
@@ -190,7 +256,7 @@ const LANDING_HTML = `<!DOCTYPE html>
                         Thách thức trí tuệ, chinh phục bảng xếp hạng và kết nối với hàng triệu người chơi trong những trận đấu kịch tính thời gian thực.
                     </p>
 <div class="flex flex-wrap gap-md pt-md">
-<a class="btn-primary-3d text-white px-2xl py-md rounded-xl font-bold font-headline-md text-headline-md flex items-center gap-sm" href="/login" target="_top" rel="noreferrer">
+<a class="btn-primary-3d text-white px-2xl py-md rounded-xl font-bold font-headline-md text-headline-md flex items-center gap-sm" href="/login" target="_top" rel="noreferrer" data-tour="landing-start">
                             Bắt đầu ngay
                             <span class="material-symbols-outlined">rocket_launch</span>
 </a>
@@ -516,6 +582,107 @@ const LANDING_HTML = `<!DOCTYPE html>
       }
 
       history.replaceState(null, '', href);
+    });
+  });
+
+  const onboardingKey = 'quizbattle_onboarding_state';
+  const landingTourKey = 'landing_play_tour_done';
+  const landingTourSteps = [
+    {
+      selector: '[data-tour="landing-start"]',
+      title: 'Bắt đầu từ đây',
+      body: 'Đây là nút đưa người dùng vào luồng chơi. Bấm tiếp để xem bước đăng nhập trước khi vào Dashboard.'
+    },
+    {
+      selector: '[data-tour="landing-login"]',
+      title: 'Có thể vào từ thanh trên',
+      body: 'Nút Chơi ngay luôn nằm trên header. Khi người dùng bấm vào, app sẽ chuyển sang trang đăng nhập.',
+      final: true
+    }
+  ];
+  let landingTourIndex = 0;
+  let landingTourNodes = [];
+
+  function clearLandingTour() {
+    landingTourNodes.forEach((node) => node.remove());
+    landingTourNodes = [];
+  }
+
+  function finishLandingTour() {
+    localStorage.setItem(landingTourKey, 'true');
+    localStorage.setItem(onboardingKey, 'login');
+    clearLandingTour();
+  }
+
+  function positionLandingTour(step, card, spot) {
+    const target = document.querySelector(step.selector);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    window.setTimeout(() => {
+      const rect = target.getBoundingClientRect();
+      spot.style.top = (rect.top - 8) + 'px';
+      spot.style.left = (rect.left - 8) + 'px';
+      spot.style.width = (rect.width + 16) + 'px';
+      spot.style.height = (rect.height + 16) + 'px';
+
+      const cardWidth = Math.min(360, window.innerWidth - 28);
+      const top = window.innerHeight - rect.bottom > 250 ? rect.bottom + 18 : Math.max(14, rect.top - 230);
+      const left = Math.min(Math.max(14, rect.left), window.innerWidth - cardWidth - 14);
+      card.style.top = top + 'px';
+      card.style.left = left + 'px';
+    }, 260);
+  }
+
+  function renderLandingTour() {
+    clearLandingTour();
+    const step = landingTourSteps[landingTourIndex];
+    const scrim = document.createElement('div');
+    const spot = document.createElement('div');
+    const card = document.createElement('div');
+    scrim.className = 'landing-tour-scrim';
+    spot.className = 'landing-tour-spot';
+    card.className = 'landing-tour-card';
+    card.innerHTML =
+      '<strong>Bước ' + (landingTourIndex + 1) + '/' + landingTourSteps.length + '</strong>' +
+      '<h2>' + step.title + '</h2>' +
+      '<p>' + step.body + '</p>' +
+      '<div class="landing-tour-actions">' +
+      '<button class="landing-tour-skip" type="button">Bỏ qua</button>' +
+      '<button class="landing-tour-next" type="button">' + (step.final ? 'Tới đăng nhập' : 'Tiếp') + '</button>' +
+      '</div>';
+    document.body.append(scrim, spot, card);
+    landingTourNodes = [scrim, spot, card];
+    positionLandingTour(step, card, spot);
+
+    card.querySelector('.landing-tour-skip').addEventListener('click', () => {
+      localStorage.setItem(landingTourKey, 'true');
+      clearLandingTour();
+    });
+    card.querySelector('.landing-tour-next').addEventListener('click', () => {
+      if (step.final) {
+        finishLandingTour();
+        window.top.location.href = '/login';
+        return;
+      }
+      landingTourIndex += 1;
+      renderLandingTour();
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    if (!landingTourNodes.length) return;
+    renderLandingTour();
+  });
+
+  window.setTimeout(() => {
+    if (localStorage.getItem(landingTourKey) === 'true') return;
+    renderLandingTour();
+  }, 700);
+
+  document.querySelectorAll('[data-tour="landing-start"], [data-tour="landing-login"]').forEach((link) => {
+    link.addEventListener('click', () => {
+      localStorage.setItem(onboardingKey, 'login');
+      localStorage.setItem(landingTourKey, 'true');
     });
   });
 </script>

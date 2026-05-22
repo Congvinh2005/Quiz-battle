@@ -1,9 +1,27 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import GuidedTour, { GuidedTourStep } from "@/components/common/GuidedTour";
+
+const ONBOARDING_STATE_KEY = "quizbattle_onboarding_state";
+const LOGIN_TOUR_DONE_KEY = "login_play_tour_done";
+
+const loginTourSteps: GuidedTourStep[] = [
+  {
+    selector: '[data-tour="login-form"]',
+    title: "Đăng nhập để vào khu chơi",
+    body: "Nhập tài khoản của bạn ở đây. Sau khi đăng nhập thành công, hệ thống sẽ đưa bạn vào Dashboard để tạo quiz, tạo phòng hoặc nhập mã phòng.",
+  },
+  {
+    selector: '[data-tour="register-link"]',
+    title: "Chưa có tài khoản?",
+    body: "Nếu bạn là người mới, bấm Đăng ký miễn phí trước. Đăng ký xong quay lại đăng nhập, tour sẽ tiếp tục ở Dashboard.",
+    actionLabel: "Đã hiểu",
+  },
+];
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
@@ -12,6 +30,7 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
 
@@ -32,6 +51,15 @@ export default function LoginScreen() {
   const loginReasonMessage = redirectAfterLogin.startsWith("/room/")
     ? "Bạn cần đăng nhập để vào phòng được mời. Đăng nhập xong hệ thống sẽ đưa bạn quay lại phòng."
     : "";
+
+  useEffect(() => {
+    const shouldShowTour = localStorage.getItem(ONBOARDING_STATE_KEY) === "login";
+    const wasLoginTourDone = localStorage.getItem(LOGIN_TOUR_DONE_KEY) === "true";
+    if (shouldShowTour && !wasLoginTourDone) {
+      const timeout = window.setTimeout(() => setIsTourOpen(true), 500);
+      return () => window.clearTimeout(timeout);
+    }
+  }, []);
 
   const getLoginErrorMessage = (err: any) => {
     const status = err?.response?.status;
@@ -60,6 +88,9 @@ export default function LoginScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("postLoginRedirect");
+        if (localStorage.getItem(ONBOARDING_STATE_KEY) === "login") {
+          localStorage.setItem(ONBOARDING_STATE_KEY, "dashboard");
+        }
       }
       router.push(redirectAfterLogin);
     } catch (err: any) {
@@ -95,7 +126,7 @@ export default function LoginScreen() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-tour="login-form">
           <div className="form-group">
             <label className="form-label">Tên tài khoản</label>
             <input
@@ -144,7 +175,7 @@ export default function LoginScreen() {
           </svg>
           Tiếp tục với Google
         </button>
-        <p className="login-footer">Chưa có tài khoản? <Link className="link" href="/register">Đăng ký miễn phí</Link></p>
+        <p className="login-footer">Chưa có tài khoản? <Link className="link" href="/register" data-tour="register-link">Đăng ký miễn phí</Link></p>
       </div>
 
       <div className="login-right">
@@ -179,6 +210,12 @@ export default function LoginScreen() {
           </div>
         </div>
       </div>
+      <GuidedTour
+        steps={loginTourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        storageKey={LOGIN_TOUR_DONE_KEY}
+      />
     </div>
   );
 }

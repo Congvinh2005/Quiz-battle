@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { quizService } from "@/services/quizService";
 import { Quiz } from "@/types";
+import GuidedTour, { GuidedTourStep } from "@/components/common/GuidedTour";
 
 const recentActivities = [
   {
@@ -29,6 +30,32 @@ const recentActivities = [
 
 const SEARCH_DEBOUNCE_MS = 250;
 const PROFILE_REMINDER_DISMISSED_KEY = "profile_reminder_dismissed";
+const DASHBOARD_TOUR_DONE_KEY = "dashboard_play_tour_done";
+const ONBOARDING_STATE_KEY = "quizbattle_onboarding_state";
+
+const dashboardTourSteps: GuidedTourStep[] = [
+  {
+    selector: '[data-tour="profile"]',
+    title: "Bước 1: Hoàn thiện hồ sơ",
+    body: "Thêm tên hiển thị và avatar trước khi vào chơi để bạn bè dễ nhận ra bạn trong lobby và bảng xếp hạng.",
+  },
+  {
+    selector: '[data-tour="create-quiz"]',
+    title: "Bước 2: Tạo quiz",
+    body: "Nếu bạn là chủ phòng, hãy tạo hoặc chọn một bộ câu hỏi trước. Quiz này sẽ dùng làm nội dung trận đấu.",
+  },
+  {
+    selector: '[data-tour="create-room"]',
+    title: "Bước 3: Tạo phòng",
+    body: "Sau khi có quiz, bấm tạo phòng để lấy mã phòng và gửi cho bạn bè cùng tham gia.",
+  },
+  {
+    selector: '[data-tour="join-room"]',
+    title: "Bước 4: Vào phòng bằng mã",
+    body: "Nếu bạn nhận được mã phòng từ người khác, nhập mã ở đây rồi bấm Join để vào lobby.",
+    actionLabel: "Hoàn tất",
+  },
+];
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -93,6 +120,8 @@ export default function DashboardScreen() {
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [greeting, setGreeting] = useState("Chào buổi sáng");
   const [showProfileReminder, setShowProfileReminder] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isDashboardTourDone, setIsDashboardTourDone] = useState(false);
 
   // Fix hydration error: update greeting after client hydration
   useEffect(() => {
@@ -145,6 +174,18 @@ export default function DashboardScreen() {
     const wasDismissed = sessionStorage.getItem(`${PROFILE_REMINDER_DISMISSED_KEY}_${user.id}`) === "true";
     setShowProfileReminder(!hasAvatar && !wasDismissed);
   }, [user]);
+
+  useEffect(() => {
+    if (!user || isAuthLoading) return;
+
+    const shouldContinueOnboarding = localStorage.getItem(ONBOARDING_STATE_KEY) === "dashboard";
+    const wasDashboardTourDone = localStorage.getItem(DASHBOARD_TOUR_DONE_KEY) === "true";
+    setIsDashboardTourDone(wasDashboardTourDone);
+    if (shouldContinueOnboarding || !wasDashboardTourDone) {
+      const timeout = window.setTimeout(() => setIsTourOpen(true), 500);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [isAuthLoading, user]);
 
   const myQuizzes = useMemo(
     () => quizzes.filter((quiz) => quiz.created_by === user?.id),
@@ -211,6 +252,19 @@ export default function DashboardScreen() {
     setShowProfileReminder(false);
   };
 
+  const handleFocusJoinRoom = () => {
+    document.getElementById("join-room")?.focus();
+  };
+
+  const handleCloseTour = () => {
+    localStorage.setItem(ONBOARDING_STATE_KEY, "done");
+    localStorage.setItem(DASHBOARD_TOUR_DONE_KEY, "true");
+    setIsDashboardTourDone(true);
+    setIsTourOpen(false);
+  };
+
+  const shouldShowFirstPlayPanel = showProfileReminder || !isDashboardTourDone;
+
   return (
     <div className="home-wrap">
       <section className="home-hero">
@@ -223,11 +277,8 @@ export default function DashboardScreen() {
             Bạn có {pendingQuizCount} quiz đang chờ được chơi. Sẵn sàng chiến chưa?
           </p>
           <div className="hero-cta">
-            <button className="btn-hero-primary" onClick={() => router.push("/create-room")}>
-              ⚡ Tạo phòng chơi
-            </button>
-            <button className="btn-hero-secondary" onClick={() => document.getElementById("join-room")?.focus()}>
-              🔍 Join phòng
+            <button className="btn-hero-primary" onClick={() => router.push("/editor")} data-tour="create-quiz">
+              + Tạo quiz mới
             </button>
             <div className="hero-search">
               <input
@@ -251,8 +302,11 @@ export default function DashboardScreen() {
                 ↻ Làm mới
               </button>
             </div>
-            <button className="btn-hero-secondary" onClick={() => router.push("/editor")}>
-              + Tạo quiz mới
+            <button className="btn-hero-secondary" onClick={() => router.push("/create-room")} data-tour="create-room">
+              ⚡ Tạo phòng chơi
+            </button>
+            <button className="btn-hero-secondary" onClick={handleFocusJoinRoom}>
+              🔍 Join phòng
             </button>
           </div>
 
@@ -268,22 +322,35 @@ export default function DashboardScreen() {
         </div>
       </section>
 
-      {showProfileReminder && (
-        <section className="profile-reminder" role="status" aria-live="polite">
-          <div className="profile-reminder-icon">
-            {(user?.full_name || user?.username || "?").slice(0, 1).toUpperCase()}
-          </div>
-          <div className="profile-reminder-copy">
-            <strong>Hoàn thiện hồ sơ của bạn</strong>
-            <span>Thêm avatar để bạn bè dễ nhận ra bạn trong lobby, chat và bảng xếp hạng.</span>
-          </div>
-          <div className="profile-reminder-actions">
-            <button type="button" className="profile-reminder-primary" onClick={handleOpenProfile}>
-              Cập nhật ngay
-            </button>
-            <button type="button" className="profile-reminder-secondary" onClick={handleDismissProfileReminder}>
-              Để sau
-            </button>
+      {shouldShowFirstPlayPanel && (
+        <section className="first-play-guide" aria-labelledby="first-play-title">
+          <div className="first-play-panel">
+            <div className="first-play-icon-badge">
+              {(user?.full_name || user?.username || "?").slice(0, 1).toUpperCase()}
+            </div>
+            <div className="first-play-copy-block">
+              <span className="section-title" id="first-play-title">
+                {showProfileReminder ? "🚀 Hoàn thiện hồ sơ & vào chơi lần đầu" : "🚀 Lần đầu vào chơi"}
+              </span>
+              <p className="first-play-subtitle">
+                {showProfileReminder
+                  ? "Thêm avatar để bạn bè nhận ra bạn trong lobby, rồi mở hướng dẫn từng bước để tạo quiz, tạo phòng hoặc nhập mã phòng."
+                  : "Mở hướng dẫn từng bước để app chỉ đúng nút cần bấm: hồ sơ, tạo quiz, tạo phòng và nhập mã phòng."}
+              </p>
+            </div>
+            <div className="first-play-actions">
+              {showProfileReminder && (
+                <button type="button" className="first-play-later-btn" onClick={handleDismissProfileReminder}>
+                  Để sau
+                </button>
+              )}
+              <button type="button" className="first-play-profile-btn" onClick={handleOpenProfile} data-tour="profile">
+                {showProfileReminder ? "Cập nhật ngay" : "Cập nhật hồ sơ"}
+              </button>
+              <button type="button" className="first-play-tour-btn" onClick={() => setIsTourOpen(true)}>
+                Xem hướng dẫn
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -433,6 +500,7 @@ export default function DashboardScreen() {
               <input
                 id="join-room"
                 className="join-input"
+                data-tour="join-room"
                 placeholder="......."
                 maxLength={6}
                 value={joinCode}
@@ -472,6 +540,12 @@ export default function DashboardScreen() {
           </div>
         </aside>
       </div>
+      <GuidedTour
+        steps={dashboardTourSteps}
+        isOpen={isTourOpen}
+        onClose={handleCloseTour}
+        storageKey={DASHBOARD_TOUR_DONE_KEY}
+      />
     </div>
   );
 }
