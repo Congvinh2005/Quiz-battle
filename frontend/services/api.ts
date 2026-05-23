@@ -28,7 +28,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Handle 401 (Unauthorized) - try to refresh token
+    // Handle 401 (Unauthorized) - try to refresh token sai hoặc hết hạn
     if (error.response?.status === 401 && !originalRequest._retry && typeof window !== "undefined") {
       originalRequest._retry = true;
 

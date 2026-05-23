@@ -21,37 +21,25 @@ export interface QuizSavePayload {
 export const quizService = {
   // Get all quizzes
   getAllQuizzes: async (): Promise<Quiz[]> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    const response = await apiClient.get<Quiz[]>("/quizzes", {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
+    const response = await apiClient.get<Quiz[]>("/quizzes");
     return response.data;
   },
 
   // Get quiz by ID
   getQuizById: async (quizId: string): Promise<Quiz> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    const response = await apiClient.get<Quiz>(`/quizzes/${quizId}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
+    const response = await apiClient.get<Quiz>(`/quizzes/${quizId}`);
     return response.data;
   },
 
   // Create new quiz
   createQuiz: async (data: QuizSavePayload): Promise<Quiz> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    const response = await apiClient.post<Quiz>("/quizzes", data, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
+    const response = await apiClient.post<Quiz>("/quizzes", data);
     return response.data;
   },
 
   // Update quiz
   updateQuiz: async (quizId: string, data: QuizSavePayload): Promise<Quiz> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    const response = await apiClient.put<Quiz>(`/quizzes/${quizId}`, data, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
+    const response = await apiClient.put<Quiz>(`/quizzes/${quizId}`, data);
     return response.data;
   },
 
@@ -68,10 +56,8 @@ export const quizService = {
 
   // Search quizzes by title
   searchQuizzes: async (q: string): Promise<Quiz[]> => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     const response = await apiClient.get<Quiz[]>("/quizzes/search", {
       params: { q },
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     return response.data;
   },
