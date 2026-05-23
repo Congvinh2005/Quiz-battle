@@ -495,7 +495,7 @@ def create_room(payload: dict, current_user: UUID, db: Session) -> dict:
 	if not quiz_id:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing quiz_id")
 
-	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_deleted.is_(False)).first()
 	if not quiz:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
 

@@ -1,5 +1,5 @@
 from uuid import UUID
-from datetime import timezone
+from datetime import datetime, timezone
 from random import choice
 
 from fastapi import HTTPException, status
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.quiz.answer_options import AnswerOption
 from app.models.quiz.questions import Question
 from app.models.quiz.quizzes import Quiz
+from app.models.game.game_rooms import GameRoom
 
 QUIZ_TITLE_ICONS = [
 	"📚",
@@ -53,6 +54,7 @@ def _serialize_quiz_summary(quiz: Quiz, question_count: int, time_limit_sum: int
 		"title": quiz.title,
 		"description": quiz.description,
 		"is_public": quiz.is_public,
+		"is_deleted": bool(getattr(quiz, "is_deleted", False)),
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
 		"created_at": _serialize_datetime(quiz.created_at),
 		"question_count": int(question_count or 0),
@@ -89,6 +91,7 @@ def _serialize_quiz_detail(quiz: Quiz) -> dict:
 		"title": quiz.title,
 		"description": quiz.description,
 		"is_public": quiz.is_public,
+		"is_deleted": bool(getattr(quiz, "is_deleted", False)),
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
 		"created_at": _serialize_datetime(quiz.created_at),
 		"questions": questions,
@@ -103,6 +106,7 @@ def list_quizzes(db: Session, current_user: UUID) -> list:
 			func.coalesce(func.sum(Question.time_limit), 0).label("time_limit_sum"),
 		)
 		.outerjoin(Question, Question.quiz_id == Quiz.id)
+		.filter(Quiz.is_deleted.is_(False))
 		.filter((Quiz.created_by == current_user) | (Quiz.is_public.is_(True)))
 		.group_by(Quiz.id)
 		.all()
@@ -120,6 +124,7 @@ def search_quizzes(db: Session, current_user: UUID, query: str) -> list:
 			func.coalesce(func.sum(Question.time_limit), 0).label("time_limit_sum"),
 		)
 		.outerjoin(Question, Question.quiz_id == Quiz.id)
+		.filter(Quiz.is_deleted.is_(False))
 		.filter(((Quiz.created_by == current_user) | (Quiz.is_public.is_(True))) & Quiz.title.ilike(q))
 		.group_by(Quiz.id)
 		.all()
@@ -129,7 +134,7 @@ def search_quizzes(db: Session, current_user: UUID, query: str) -> list:
 
 
 def get_quiz_detail(quiz_id: UUID, current_user: UUID, db: Session) -> dict:
-	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_deleted.is_(False)).first()
 	if not quiz:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
 
@@ -194,7 +199,7 @@ def create_quiz_with_questions(payload: dict, current_user: UUID, db: Session) -
 
 
 def update_quiz_with_questions(quiz_id: UUID, payload: dict, current_user: UUID, db: Session) -> dict:
-	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_deleted.is_(False)).first()
 	if not quiz:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
 
@@ -248,18 +253,27 @@ def update_quiz_with_questions(quiz_id: UUID, payload: dict, current_user: UUID,
 		"title": quiz.title,
 		"description": quiz.description,
 		"is_public": quiz.is_public,
+		"is_deleted": bool(getattr(quiz, "is_deleted", False)),
 		"created_by": str(quiz.created_by) if quiz.created_by else None,
 		"created_at": _serialize_datetime(quiz.created_at),
 	}
 
 
 def delete_quiz(quiz_id: UUID, current_user: UUID, db: Session) -> None:
-	quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+	quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_deleted.is_(False)).first()
 	if not quiz:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
 
 	if quiz.created_by != current_user:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete this quiz")
+
+	has_game_history = db.query(GameRoom.id).filter(GameRoom.quiz_id == quiz.id).first() is not None
+	if has_game_history:
+		quiz.is_deleted = True
+		quiz.is_public = False
+		quiz.deleted_at = datetime.now(timezone.utc)
+		db.commit()
+		return
 
 	db.delete(quiz)
 	db.commit()

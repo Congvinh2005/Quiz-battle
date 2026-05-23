@@ -55,6 +55,8 @@ export interface Quiz {
   description?: string;
   created_by: string;
   is_public: boolean;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
   created_at: string;
   questions?: Question[];
   question_count?: number;

@@ -11,6 +11,7 @@ from app.services.redis_pubsub import close_pubsub, listen_ws_events
 import asyncio
 import logging
 import os
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 redis_pubsub_task: asyncio.Task | None = None
@@ -53,6 +54,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 def startup():
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created successfully!")
+
+    # create_all() does not alter existing tables, so keep lightweight
+    # compatibility patches here for local databases without Alembic setup.
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE"))
+            connection.execute(text("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_quizzes_is_deleted ON quizzes (is_deleted)"))
+            connection.execute(text("ALTER TABLE quizzes ALTER COLUMN is_deleted DROP DEFAULT"))
+        print("✅ Quiz soft-delete columns verified!")
+    except Exception as e:
+        print(f"⚠️ Quiz soft-delete schema patch failed: {e}")
     
     # Run Alembic migrations
     try:
