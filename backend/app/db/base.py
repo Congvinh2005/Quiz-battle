@@ -1,6 +1,7 @@
 from app.db.base_class import Base
 from app.models.user_auth.users import User
 from app.models.user_auth.refresh_tokens import RefreshToken
+from app.models.user_auth.email_login_otps import EmailLoginOtp
 from app.models.quiz.quizzes import Quiz
 from app.models.quiz.questions import Question
 from app.models.quiz.answer_options import AnswerOption
@@ -16,6 +17,7 @@ __all__ = [
     "Base",
     "User",
     "RefreshToken",
+    "EmailLoginOtp",
     "Quiz",
     "Question",
     "AnswerOption",
@@ -27,4 +29,3 @@ __all__ = [
     "ChatMessage",
     "UserStats",
 ]
-

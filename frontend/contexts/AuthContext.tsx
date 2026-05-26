@@ -10,6 +10,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   loginWithGoogle: (code: string) => Promise<void>;
+  requestEmailOtp: (email: string) => Promise<void>;
+  loginWithEmailOtp: (email: string, code: string) => Promise<void>;
   register: (username: string, email: string, password: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -70,6 +72,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem("refresh_token", tokens.refresh_token);
 
       // Get user data
+      const currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const requestEmailOtp = useCallback(async (email: string) => {
+    await authService.requestEmailOtp({ email });
+  }, []);
+
+  const loginWithEmailOtp = useCallback(async (email: string, code: string) => {
+    try {
+      setIsLoading(true);
+      const tokens: AuthTokens = await authService.loginWithEmailOtp({ email, code });
+
+      localStorage.setItem("access_token", tokens.access_token);
+      localStorage.setItem("refresh_token", tokens.refresh_token);
+
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
     } finally {
@@ -140,10 +161,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     login,
     loginWithGoogle,
+    requestEmailOtp,
+    loginWithEmailOtp,
     register,
     logout,
     updateUser,
-  }), [user, isLoading, login, loginWithGoogle, register, logout, updateUser]);
+  }), [user, isLoading, login, loginWithGoogle, requestEmailOtp, loginWithEmailOtp, register, logout, updateUser]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 from app.db.session import get_db
-from app.schemas.auth import UserRegister, UserLogin, TokenResponse, TokenRefresh, UserResponse, AccessTokenResponse, GoogleLoginRequest
-from app.services.auth_service import register_user, authenticate_user, create_tokens, refresh_access_token, logout_user, authenticate_google_user
+from app.schemas.auth import UserRegister, UserLogin, TokenResponse, TokenRefresh, UserResponse, AccessTokenResponse, GoogleLoginRequest, EmailOtpRequest, EmailOtpVerifyRequest, MessageResponse
+from app.services.auth_service import register_user, authenticate_user, create_tokens, refresh_access_token, logout_user, authenticate_google_user, request_email_login_otp, authenticate_email_otp_user
 from app.api.dependencies import get_current_user
 from app.models.user_auth.users import User
 
@@ -61,3 +61,18 @@ async def google_login(credentials: GoogleLoginRequest, db: Session = Depends(ge
         expires_in=tokens["expires_in"]
     )
 
+@router.post("/email-otp/request", response_model=MessageResponse)
+def request_email_otp(data: EmailOtpRequest, db: Session = Depends(get_db)):
+    request_email_login_otp(db, data.email)
+    return MessageResponse(message="Nếu email tồn tại, mã đăng nhập đã được gửi.")
+
+@router.post("/email-otp/verify", response_model=TokenResponse)
+def verify_email_otp(data: EmailOtpVerifyRequest, db: Session = Depends(get_db)):
+    user = authenticate_email_otp_user(db, data.email, data.code)
+    tokens = create_tokens(user.id)
+
+    return TokenResponse(
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+        expires_in=tokens["expires_in"]
+    )

@@ -137,6 +137,63 @@
   margin-right: auto;
 }
 
+.login-mode-tabs {
+  width: calc(100% - 50px);
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  background: rgba(124, 58, 237, 0.06);
+}
+
+.login-mode-tab {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.login-mode-tab.active {
+  background: #ffffff;
+  border-color: rgba(124, 58, 237, 0.28);
+  color: var(--text);
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.12);
+}
+
+.otp-code-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.otp-resend-btn {
+  display: block;
+  margin: 12px auto 0;
+  border: none;
+  background: transparent;
+  color: var(--primary-light);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.otp-resend-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
 .brand-badge .dot {
   width: 6px;
   height: 6px;
@@ -481,7 +538,8 @@
 
   .login-left form .btn-primary,
   .login-left .btn-outline,
-  .login-left .form-group {
+  .login-left .form-group,
+  .login-mode-tabs {
     width: 100%;
     min-width: 0;
     max-width: 100%;

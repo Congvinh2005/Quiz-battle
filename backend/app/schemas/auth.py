@@ -41,3 +41,12 @@ class AccessTokenResponse(BaseModel):
 class GoogleLoginRequest(BaseModel):
     code: str
 
+class EmailOtpRequest(BaseModel):
+    email: EmailStr
+
+class EmailOtpVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
+
+class MessageResponse(BaseModel):
+    message: str

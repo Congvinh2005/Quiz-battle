@@ -35,6 +35,17 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
 
+    # Email OTP login
+    EMAIL_OTP_EXPIRE_MINUTES: int = 10
+    EMAIL_OTP_RESEND_SECONDS: int = 60
+    EMAIL_OTP_MAX_ATTEMPTS: int = 5
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_USE_TLS: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = True

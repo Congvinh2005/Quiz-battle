@@ -73,7 +73,12 @@ def startup():
         from alembic import command
         import os
         
-        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+        alembic_ini = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
+        if not os.path.exists(alembic_ini):
+            print("ℹ️ Alembic config not found, relying on SQLAlchemy create_all() for local startup.")
+            return
+
+        alembic_cfg = Config(alembic_ini)
         alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
         command.upgrade(alembic_cfg, "head")
         print("✅ Alembic migrations completed!")

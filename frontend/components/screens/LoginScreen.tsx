@@ -24,15 +24,19 @@ const loginTourSteps: GuidedTourStep[] = [
 ];
 
 export default function LoginScreen() {
+  const [loginMode, setLoginMode] = useState<"password" | "emailOtp">("password");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, requestEmailOtp, loginWithEmailOtp } = useAuth();
 
   const redirectAfterLogin = useMemo(() => {
     if (typeof window === "undefined") return "/dashboard";
@@ -84,17 +88,59 @@ export default function LoginScreen() {
 
     try {
       await login(username, password);
-      setSuccessMessage("Đăng nhập thành công, vào chơi thôi!");
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("postLoginRedirect");
-        if (localStorage.getItem(ONBOARDING_STATE_KEY) === "login") {
-          localStorage.setItem(ONBOARDING_STATE_KEY, "dashboard");
-        }
-      }
-      router.push(redirectAfterLogin);
+      await finishSuccessfulLogin();
     } catch (err: any) {
       setError(getLoginErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const finishSuccessfulLogin = async () => {
+    setSuccessMessage("Đăng nhập thành công! Đang chuyển đến Dashboard...");
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("postLoginRedirect");
+      if (localStorage.getItem(ONBOARDING_STATE_KEY) === "login") {
+        localStorage.setItem(ONBOARDING_STATE_KEY, "dashboard");
+      }
+    }
+    router.push(redirectAfterLogin);
+  };
+
+  const getOtpErrorMessage = (err: any) => {
+    const detail = err?.response?.data?.detail || err?.response?.data?.message;
+    return typeof detail === "string" ? detail : "Không thể xử lý mã đăng nhập. Vui lòng thử lại.";
+  };
+
+  const handleRequestOtp = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
+    setError("");
+    setSuccessMessage("");
+    setIsLoading(true);
+
+    try {
+      await requestEmailOtp(otpEmail);
+      setOtpSent(true);
+      setSuccessMessage("Mã đăng nhập đã được gửi. Vui lòng kiểm tra email của bạn.");
+    } catch (err: any) {
+      setError(getOtpErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMessage("");
+    setIsLoading(true);
+
+    try {
+      await loginWithEmailOtp(otpEmail, otpCode);
+      await finishSuccessfulLogin();
+    } catch (err: any) {
+      setError(getOtpErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -138,44 +184,117 @@ export default function LoginScreen() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} data-tour="login-form">
-          <div className="form-group">
-            <label className="form-label">Tên tài khoản</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Nhập tên tài khoản..."
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Mật khẩu</label>
-            <div className="password-wrapper">
+        <div className="login-mode-tabs" role="tablist" aria-label="Chọn kiểu đăng nhập">
+          <button
+            className={`login-mode-tab ${loginMode === "password" ? "active" : ""}`}
+            type="button"
+            onClick={() => {
+              setLoginMode("password");
+              setError("");
+              setSuccessMessage("");
+            }}
+          >
+            Mật khẩu
+          </button>
+          <button
+            className={`login-mode-tab ${loginMode === "emailOtp" ? "active" : ""}`}
+            type="button"
+            onClick={() => {
+              setLoginMode("emailOtp");
+              setError("");
+              setSuccessMessage("");
+            }}
+          >
+            Mã email
+          </button>
+        </div>
+
+        {loginMode === "password" ? (
+          <form onSubmit={handleSubmit} data-tour="login-form">
+            <div className="form-group">
+              <label className="form-label">Tên tài khoản</label>
               <input
                 className="form-input"
-                type={showPassword ? "text" : "password"}
-                placeholder="Nhập mật khẩu..."
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="text"
+                placeholder="Nhập tên tài khoản..."
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              >
-                {showPassword ? "👁" : "🙈"}
-              </button>
             </div>
-          </div>
+            <div className="form-group">
+              <label className="form-label">Mật khẩu</label>
+              <div className="password-wrapper">
+                <input
+                  className="form-input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Nhập mật khẩu..."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  {showPassword ? "👁" : "🙈"}
+                </button>
+              </div>
+            </div>
 
-          <button className="btn-primary" type="submit" disabled={isLoading}>
-            {isLoading ? "Đang đăng nhập..." : "Đăng nhập →"}
-          </button>
-        </form>
+            <button className="btn-primary" type="submit" disabled={isLoading}>
+              {isLoading ? "Đang đăng nhập..." : "Đăng nhập →"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={otpSent ? handleVerifyOtp : handleRequestOtp} data-tour="login-form">
+            <div className="form-group">
+              <label className="form-label">Email tài khoản</label>
+              <input
+                className="form-input"
+                type="email"
+                placeholder="Nhập email đã đăng ký..."
+                value={otpEmail}
+                onChange={(e) => setOtpEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            {otpSent && (
+              <div className="form-group">
+                <label className="form-label">Mã xác thực</label>
+                <input
+                  className="form-input otp-code-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                />
+              </div>
+            )}
+
+            <button className="btn-primary" type="submit" disabled={isLoading || (otpSent && otpCode.length !== 6)}>
+              {isLoading ? "Đang xử lý..." : otpSent ? "Xác thực mã →" : "Gửi mã đăng nhập"}
+            </button>
+
+            {otpSent && (
+              <button
+                className="otp-resend-btn"
+                type="button"
+                disabled={isLoading}
+                onClick={handleRequestOtp}
+              >
+                Gửi lại mã
+              </button>
+            )}
+          </form>
+        )}
 
         <div className="login-divider">hoặc</div>
         <button className="btn-outline" type="button" onClick={handleGoogleLogin}>

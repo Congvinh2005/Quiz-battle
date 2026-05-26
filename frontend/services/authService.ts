@@ -1,5 +1,5 @@
 import apiClient from "./api";
-import { User, AuthTokens, LoginRequest, RegisterRequest } from "@/types";
+import { User, AuthTokens, LoginRequest, RegisterRequest, EmailOtpRequest, EmailOtpVerifyRequest } from "@/types";
 
 export interface UpdateProfileRequest {
   username: string;
@@ -21,6 +21,16 @@ export const authService = {
 
   loginWithGoogle: async (code: string): Promise<AuthTokens> => {
     const response = await apiClient.post<AuthTokens>("/auth/google", { code });
+    return response.data;
+  },
+
+  requestEmailOtp: async (data: EmailOtpRequest): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>("/auth/email-otp/request", data);
+    return response.data;
+  },
+
+  loginWithEmailOtp: async (data: EmailOtpVerifyRequest): Promise<AuthTokens> => {
+    const response = await apiClient.post<AuthTokens>("/auth/email-otp/verify", data);
     return response.data;
   },
 

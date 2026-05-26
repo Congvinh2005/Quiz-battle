@@ -13,6 +13,7 @@ export interface AuthTokens {
   access_token: string;
   refresh_token: string;
   token_type: string;
+  expires_in?: number;
 }
 
 export interface LoginRequest {
@@ -25,6 +26,15 @@ export interface RegisterRequest {
   full_name?: string | null;
   email: string;
   password: string;
+}
+
+export interface EmailOtpRequest {
+  email: string;
+}
+
+export interface EmailOtpVerifyRequest {
+  email: string;
+  code: string;
 }
 
 // Quiz Types

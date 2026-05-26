@@ -1,11 +1,16 @@
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
+import hashlib
+import hmac
+import secrets
 from app.models.user_auth.users import User
+from app.models.user_auth.email_login_otps import EmailLoginOtp
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.core.config import settings
 from app.core.exceptions import UserAlreadyExists, InvalidCredentials
 from app.services.redis_manager import save_refresh_token, validate_refresh_token, revoke_user_refresh_tokens
+from app.services.email_service import send_login_otp
 
 def register_user(db: Session, username: str, email: str, password: str, full_name: str | None = None) -> User:
     username = username.strip()
@@ -67,6 +72,105 @@ def refresh_access_token(refresh_token: str) -> dict:
 def logout_user(user_id: UUID) -> bool:
     revoke_user_refresh_tokens(user_id)
     return True
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+def _hash_email_otp(email: str, code: str) -> str:
+    message = f"{_normalize_email(email)}:{code}".encode("utf-8")
+    secret = settings.SECRET_KEY.encode("utf-8")
+    return hmac.new(secret, message, hashlib.sha256).hexdigest()
+
+def request_email_login_otp(db: Session, email: str) -> None:
+    from fastapi import HTTPException
+
+    normalized_email = _normalize_email(email)
+    now = datetime.utcnow()
+    cooldown_start = now - timedelta(seconds=settings.EMAIL_OTP_RESEND_SECONDS)
+
+    recent_otp = (
+        db.query(EmailLoginOtp)
+        .filter(
+            EmailLoginOtp.email == normalized_email,
+            EmailLoginOtp.consumed_at.is_(None),
+            EmailLoginOtp.created_at >= cooldown_start,
+        )
+        .first()
+    )
+    if recent_otp:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Vui lòng đợi {settings.EMAIL_OTP_RESEND_SECONDS} giây trước khi gửi lại mã.",
+        )
+
+    user = db.query(User).filter(User.email == normalized_email).first()
+    if not user:
+        # Return a generic success at the API layer to avoid revealing accounts.
+        if settings.DEBUG:
+            print(f"[DEV EMAIL OTP] No account found for {normalized_email}; no OTP was created.")
+        return
+
+    (
+        db.query(EmailLoginOtp)
+        .filter(EmailLoginOtp.email == normalized_email, EmailLoginOtp.consumed_at.is_(None))
+        .update({"consumed_at": now}, synchronize_session=False)
+    )
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    otp = EmailLoginOtp(
+        email=normalized_email,
+        code_hash=_hash_email_otp(normalized_email, code),
+        expires_at=now + timedelta(minutes=settings.EMAIL_OTP_EXPIRE_MINUTES),
+        attempts=0,
+    )
+    db.add(otp)
+    db.commit()
+
+    try:
+        send_login_otp(normalized_email, code)
+    except Exception as e:
+        otp.consumed_at = now
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Không thể gửi email OTP: {str(e)}")
+
+def authenticate_email_otp_user(db: Session, email: str, code: str) -> User:
+    from fastapi import HTTPException
+
+    normalized_email = _normalize_email(email)
+    cleaned_code = code.strip()
+    now = datetime.utcnow()
+
+    otp = (
+        db.query(EmailLoginOtp)
+        .filter(
+            EmailLoginOtp.email == normalized_email,
+            EmailLoginOtp.consumed_at.is_(None),
+        )
+        .order_by(EmailLoginOtp.created_at.desc())
+        .first()
+    )
+    if not otp or otp.expires_at < now:
+        raise HTTPException(status_code=400, detail="Mã OTP không hợp lệ hoặc đã hết hạn.")
+
+    if otp.attempts >= settings.EMAIL_OTP_MAX_ATTEMPTS:
+        otp.consumed_at = now
+        db.commit()
+        raise HTTPException(status_code=400, detail="Mã OTP đã bị khóa do nhập sai quá nhiều lần.")
+
+    otp.attempts += 1
+    if not hmac.compare_digest(otp.code_hash, _hash_email_otp(normalized_email, cleaned_code)):
+        db.commit()
+        raise HTTPException(status_code=400, detail="Mã OTP không đúng.")
+
+    user = db.query(User).filter(User.email == normalized_email).first()
+    if not user:
+        otp.consumed_at = now
+        db.commit()
+        raise HTTPException(status_code=400, detail="Tài khoản không tồn tại.")
+
+    otp.consumed_at = now
+    db.commit()
+    return user
 
 async def authenticate_google_user(db: Session, code: str) -> User:
     import httpx
@@ -172,4 +276,3 @@ async def authenticate_google_user(db: Session, code: str) -> User:
     db.commit()
     db.refresh(user)
     return user
-
