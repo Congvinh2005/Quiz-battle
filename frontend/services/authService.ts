@@ -19,10 +19,16 @@ export const authService = {
     return response.data;
   },
 
+  loginWithGoogle: async (code: string): Promise<AuthTokens> => {
+    const response = await apiClient.post<AuthTokens>("/auth/google", { code });
+    return response.data;
+  },
+
   register: async (data: RegisterRequest): Promise<AuthTokens> => {
     const response = await apiClient.post<AuthTokens>("/auth/register", data);
     return response.data;
   },
+
 
   getCurrentUser: async (): Promise<User> => {
     const response = await apiClient.get<User>("/auth/me");

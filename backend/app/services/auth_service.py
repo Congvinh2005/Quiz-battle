@@ -67,3 +67,109 @@ def refresh_access_token(refresh_token: str) -> dict:
 def logout_user(user_id: UUID) -> bool:
     revoke_user_refresh_tokens(user_id)
     return True
+
+async def authenticate_google_user(db: Session, code: str) -> User:
+    import httpx
+    from uuid import uuid4
+    from fastapi import HTTPException
+    
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=400,
+            detail="Google OAuth is not configured on the server."
+        )
+
+    # 1. Exchange authorization code for token
+    async with httpx.AsyncClient() as client:
+        try:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                    "grant_type": "authorization_code",
+                },
+                timeout=10.0
+            )
+            token_data = token_response.json()
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to communicate with Google token endpoint: {str(e)}"
+            )
+
+        if token_response.status_code != 200:
+            raise HTTPException(
+                status_code=400,
+                detail=token_data.get("error_description") or token_data.get("error") or "Failed to exchange Google OAuth code."
+            )
+
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="No access token received from Google.")
+
+        # 2. Get user info from Google
+        try:
+            userinfo_response = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0
+            )
+            user_info = userinfo_response.json()
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to fetch user info from Google: {str(e)}"
+            )
+
+        if userinfo_response.status_code != 200:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to fetch user info from Google."
+            )
+
+    email = user_info.get("email")
+    full_name = user_info.get("name")
+    avatar_url = user_info.get("picture")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Google account has no email address associated.")
+
+    # 3. Check if user exists
+    user = db.query(User).filter(User.email == email).first()
+    
+    if user:
+        # If user exists, update avatar_url if it changed or was empty
+        if avatar_url and (not user.avatar_url or user.avatar_url != avatar_url):
+            user.avatar_url = avatar_url
+            db.commit()
+            db.refresh(user)
+        return user
+    
+    # 4. Create new user if not exists
+    base_username = email.split("@")[0].strip()
+    if len(base_username) < 3:
+        base_username = base_username + "123"
+    base_username = base_username[:45]
+    
+    username = base_username
+    while db.query(User).filter(User.username == username).first() is not None:
+        username = f"{base_username}_{str(uuid4())[:4]}"
+        
+    random_password = str(uuid4())
+    hashed_password = hash_password(random_password)
+    
+    user = User(
+        username=username,
+        email=email,
+        full_name=full_name.strip() if full_name else None,
+        avatar_url=avatar_url,
+        password_hash=hashed_password,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+

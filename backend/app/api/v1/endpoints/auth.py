@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 from app.db.session import get_db
-from app.schemas.auth import UserRegister, UserLogin, TokenResponse, TokenRefresh, UserResponse, AccessTokenResponse
-from app.services.auth_service import register_user, authenticate_user, create_tokens, refresh_access_token, logout_user
+from app.schemas.auth import UserRegister, UserLogin, TokenResponse, TokenRefresh, UserResponse, AccessTokenResponse, GoogleLoginRequest
+from app.services.auth_service import register_user, authenticate_user, create_tokens, refresh_access_token, logout_user, authenticate_google_user
 from app.api.dependencies import get_current_user
 from app.models.user_auth.users import User
 
@@ -49,3 +49,15 @@ def refresh(data: TokenRefresh):
 def logout(current_user: UUID = Depends(get_current_user)):
     logout_user(current_user)
     return None
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(credentials: GoogleLoginRequest, db: Session = Depends(get_db)):
+    user = await authenticate_google_user(db, credentials.code)
+    tokens = create_tokens(user.id)
+
+    return TokenResponse(
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+        expires_in=tokens["expires_in"]
+    )
+
